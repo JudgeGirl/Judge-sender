@@ -32,6 +32,12 @@ def work(sid, pid, lng):
 			for fn in fp.readlines():
 				send(ofp, '../submission/%d-%d' % (sid, i), fn[:-1])
 				i += 1
+	try:
+		with open('../testdata/%d/send.lst' % pid) as fp:
+			for fn in fp.readlines():
+				send(ofp, '../testdata/%d/%s' % (pid, fn[:-1]), fn[:-1])
+	except:
+		pass
 	ofp.write(('%10d' % -lng).encode())
 	ofp.flush()
 	while True:
@@ -59,6 +65,6 @@ def main():
 			time.sleep(1)
 
 assert __name__ == '__main__'
-db = MySQLdb.connect( host="140.112.xxx.xxx", user="c2015", passwd="xxxxxxxxxx", db="c2015")
+db = MySQLdb.connect( host="140.112.xxx.xxx", user="c2015", passwd="xxxxxxxxxxxxx", db="c2015")
 cursor = db.cursor()
 main()
