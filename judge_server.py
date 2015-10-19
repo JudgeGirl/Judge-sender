@@ -2,6 +2,7 @@ import binascii
 import os
 import signal
 #import sqlite3
+import pymysql
 import MySQLdb
 import subprocess
 import sys
@@ -19,10 +20,10 @@ def send(ofp, lname, rname):
 
 def work(sid, pid, lng):
 	print(sid, pid, lng, file = sys.stderr)
-	p = subprocess.Popen(['ssh', 'maplewing@140.112.30.245', 'butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+	p = subprocess.Popen(['ssh', 'butler@127.0.0.1', './butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
 	ifp = p.stdout
 	ofp = p.stdin
-	send(ofp, '../const.py', 'const.py')
+	send(ofp, './const.py', 'const.py')
 	send(ofp, '../testdata/%d/judge' % pid, 'judge')
 	if lng != 0:
 		send(ofp, '../submission/%d-0' % sid, 'source')
@@ -65,6 +66,6 @@ def main():
 			time.sleep(1)
 
 assert __name__ == '__main__'
-db = MySQLdb.connect( host="140.112.xxx.xxx", user="c2015", passwd="xxxxxxxxxxxxx", db="c2015")
+db = MySQLdb.connect( host="127.0.0.1", user="JudgeGirl", passwd="ef295a94", db="JudgeGirl")
 cursor = db.cursor()
 main()
