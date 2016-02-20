@@ -29,6 +29,20 @@ import MySQLdb
 
 If everything went ok - then both lines should not fail.
 
-### Other Detail ###
+### 其他細節 ###
 
-If any step happened error, maybe install `sudo apt-get install python3-dev`.
+* 如果發生錯誤，通常是忘記安裝 python3 開發套件  
+```
+sudo apt-get install python3-dev
+```
+
+* 如果出現 `setuptools not found` [issue](https://github.com/JudgeGirl/Judge-sender/issues/5)
+```
+wget https://bootstrap.pypa.io/ez_setup.py -O - | python3
+```
+
+* 如果出現 `mysql_config not found` [issue](https://github.com/JudgeGirl/Judge-sender/issues/4)   
+```
+apt-get install libmysqlclient-dev
+```
+

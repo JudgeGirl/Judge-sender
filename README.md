@@ -1,16 +1,20 @@
 ## Judge-sender ##
 
 ```
-+- judgesister
-|
-+--- judge-sender <----
-|
-+--- testdata
-|
-+--- submission
+root@ubuntu:/home/judgesister# tree -L 1
+.
+├── Judge-MySQL
+├── JudgeNode
+├── Judge-receiver
+├── Judge-sender
+├── Judge-template
+├── README.md
+├── source
+├── submission
+└── testdata
 ```
 
-### Prepare ###
+### 準備工作 ###
 
 1. open the `judge_server.py`.
 2. make sure MySQL host, user, password, dbname correct.
