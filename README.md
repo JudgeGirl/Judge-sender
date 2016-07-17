@@ -40,3 +40,4 @@ $ ./start
 
 * If judge-sender stop, maybe happened file not found or testdata setting error. Make sure the setting correct and restart the judge-sender. 
 * If the accident need to solve as soon as possible, remove the submission id from mysql database and ban the right of problem submit ability.
+* If ssh slow, add `UseDNS no` into `/etc/ssh/sshd_config` and then execute `sudo service ssh restart`.
