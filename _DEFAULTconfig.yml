@@ -1,0 +1,15 @@
+# fetch remote db
+DATABASE:
+    host: '140.112.31.208'
+    user: 'c2016'
+    password: ''
+    port: '3306'
+    database: 'c2016'
+
+
+# default sandbox config
+BUTLER:
+    host: '140.112.31.208'
+    user: 'butler'
+    period: 1
+
