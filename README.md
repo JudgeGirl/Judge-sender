@@ -1,12 +1,14 @@
 ## Judge-sender ##
 
+配置目錄如下
+
 ```
 root@ubuntu:/home/judgesister# tree -L 1
 .
 ├── Judge-MySQL
 ├── JudgeNode
 ├── Judge-receiver
-├── Judge-sender
+├── Judge-sender <<<<<<<<< 
 ├── Judge-template
 ├── README.md
 ├── source
@@ -16,11 +18,13 @@ root@ubuntu:/home/judgesister# tree -L 1
 
 ### 準備工作 ###
 
-1. open the `judge_server.py`.
-2. make sure MySQL host, user, password, dbname correct.
-3. check judge-machine user login with ssh, ex. login maplewing@140.112.30.245 without password.
+1. 確定資料庫帳號允許登入
+2. 沙盒使用帳號允許免密碼登入
+3. 安裝 python3 模組
+	* `pip3 install PyYaml`
+	* `MySQLdb` 參閱 `install_tutorial` 下的說明
 
-#### How to Make Login without Password ####
+#### 建立遠端免密碼登入 ####
 
 ```
 $ ssh-keygen -t rsa
@@ -29,15 +33,15 @@ $ ssh server_hostname
 $ cat .ssh/id_rsa.pub >> .ssh/authorized_keys
 ```
 
-### Run ###
+### 運行 ###
 
 ```
 $ cd judge-sender
 $ ./start
 ```
 
-### Exception ###
+### 例外處理 ###
 
-* If judge-sender stop, maybe happened file not found or testdata setting error. Make sure the setting correct and restart the judge-sender. 
-* If the accident need to solve as soon as possible, remove the submission id from mysql database and ban the right of problem submit ability.
-* If ssh slow, add `UseDNS no` into `/etc/ssh/sshd_config` and then execute `sudo service ssh restart`.
+* 如果 Judge-sender 停止，大部份都是發生測資檔案找不到。
+* 如果進入無限迴圈，建議先把要測試提交資訊從 MySQL 移除。
+* 如果遠端連線很慢，請在 `/etc/ssh/sshd_config` 加入一行 `UseDNS no`，隨後執行 `sudo service ssh restart` 讓設定生效。
