@@ -23,6 +23,7 @@ root@ubuntu:/home/judgesister# tree -L 1
 3. 安裝 python3 模組
 	* `pip3 install PyYaml`
 	* `MySQLdb` 參閱 `install_tutorial` 下的說明
+4. 執行 `cp _DEFAULTconfig.yml _config.yml`，並且把上述的密碼資訊填入 `_config.yml` 中。
 
 #### 建立遠端免密碼登入 ####
 
