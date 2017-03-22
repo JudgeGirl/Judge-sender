@@ -20,7 +20,7 @@ def send(ofp, lname, rname):
 
 def work(sid, pid, lng, serv):
 	print(sid, pid, lng, file = sys.stderr)
-	p = subprocess.Popen(['ssh', serv, 'butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+        p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
 	ifp = p.stdout
 	ofp = p.stdin
 	send(ofp, './const.py', 'const.py')
