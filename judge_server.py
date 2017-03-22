@@ -7,6 +7,7 @@ import subprocess
 import sys
 import time
 import yaml
+from colorama import Fore, Back, Style
 
 def send(ofp, lname, rname):
 	assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -19,8 +20,9 @@ def send(ofp, lname, rname):
 	ofp.flush()
 
 def work(sid, pid, lng, serv):
-	print(sid, pid, lng, file = sys.stderr)
-        p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+	print('[' + Fore.GREEN + 'Run'+ Fore.RESET + '] sid %d pid %d lng %d' % (sid, pid, lng), file = sys.stderr)
+
+	p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
 	ifp = p.stdout
 	ofp = p.stdin
 	send(ofp, './const.py', 'const.py')
@@ -53,6 +55,9 @@ def work(sid, pid, lng, serv):
 	dtl = ifp.read()
 	if dtl:
 		with open('../submission/%d-z' % sid, 'wb') as fp: fp.write(dtl)
+
+	print('[' + Fore.MAGENTA + 'Get' + Fore.RESET + '] sid %d time %d space %d score %d' % (sid, cpu, mem, score), file = sys.stderr)
+
 	cursor.execute("UPDATE submissions SET scr=%s, res=%s, cpu=%s, mem=%s WHERE sid=%s" % (score, result, cpu, mem, sid))
 	#db.commit()
 
@@ -68,6 +73,7 @@ def prepare(sid, pid, lng):
         work(sid, pid, lng, '%s@%s' % (account, address))
 
 def main():
+	print('[' + Fore.GREEN + 'INFO' + Fore.RESET + '] Load submitted code ...', file = sys.stderr)
 	while True:
 		cursor.execute('SELECT sid, pid, lng FROM submissions WHERE res = 0 ORDER BY sid LIMIT 1')
 		row = cursor.fetchone()
