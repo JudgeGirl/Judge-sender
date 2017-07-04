@@ -1,0 +1,18 @@
+# fetch remote db
+DATABASE:
+    host: '140.112.31.208'
+    user: 'teacher'
+    password: ''
+    port: '3306'
+    database: 'judgegirl'
+
+
+# default sandbox config
+BUTLER:
+    - host: '140.112.31.208'
+      user: 'butler'
+    - host: '140.112.30.244'
+      user: 'butler'
+
+PATH:
+    testdata: '../testdata'
