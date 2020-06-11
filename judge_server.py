@@ -20,38 +20,44 @@ def send(ofp, lname, rname):
         ofp.flush()
 
 def has_banned_word(lng, pid, sid):
-    submission_dir = '../submission'
-    sourceList = '../testdata/{}/source.lst'.format(pid)
-    check_script = 'scripts/banWordCheck.py'
-    ban_word = 'fork'
+        submission_dir = '../submission'
+        sourceList = '../testdata/{}/source.lst'.format(pid)
+        check_script = 'scripts/banWordCheck.py'
+        ban_word = 'fork'
 
-    if lng != 0:
-        file_num = 1
-    else:
-        file_num = 0
-        with open(sourceList) as fp:
-            for filename in fp.readlines():
-                file_num += 1
+        if lng != 0:
+                file_num = 1
+        else:
+                file_num = 0
+                with open(sourceList) as fp:
+                        for filename in fp.readlines():
+                                file_num += 1
 
-    for file_count in range(file_num):
-        filename = '../submission/{}-{}'.format(sid, file_count)
-        if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
-            return True
+        for file_count in range(file_num):
+                filename = '../submission/{}-{}'.format(sid, file_count)
+                if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
+                        return True
 
-    print('good')
-    return False
+        print('good')
+        return False
 
 def updateSubmission(scr, res, cpu, mem, sid):
-    query = 'UPDATE submissions SET scr = {}, res = {}, cpu={}, mem={} WHERE sid={}'.format(
-        scr,
-        res,
-        cpu,
-        mem,
-        sid
-    )
-    cursor.execute(query)
+        query = 'UPDATE submissions SET scr = {}, res = {}, cpu={}, mem={} WHERE sid={}'.format(
+                scr,
+                res,
+                cpu,
+                mem,
+                sid
+        )
+        cursor.execute(query)
 
 def work(sid, pid, lng, serv):
+        # wima is down now, any submission to this server will get RE as result
+        if (serv == "butler@140.112.31.200"):
+                updateSubmission(0, 4, 0, 0, sid)
+                return
+
+
         print('[' + Fore.GREEN + 'Run'+ Fore.RESET + '] sid %d pid %d lng %d' % (sid, pid, lng), file = sys.stderr)
 
         p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
@@ -93,9 +99,9 @@ def work(sid, pid, lng, serv):
         trigger_of_search_bad_word = 50
         result_AC = 7
         if result == result_AC and cpu < trigger_of_search_bad_word and has_banned_word(lng, pid, sid):
-            print('found banned word, execute')
-            updateSubmission(-1, 4, cpu, mem, sid)
-            return
+                print('found banned word, execute')
+                updateSubmission(-1, 4, cpu, mem, sid)
+                return
 
         updateSubmission(score, result, cpu, mem, sid)
 
