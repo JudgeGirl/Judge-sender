@@ -41,6 +41,16 @@ def has_banned_word(lng, pid, sid):
     print('good')
     return False
 
+def updateSubmission(scr, res, cpu, mem, sid):
+    query = 'UPDATE submissions SET scr = {}, res = {}, cpu={}, mem={} WHERE sid={}'.format(
+        scr,
+        res,
+        cpu,
+        mem,
+        sid
+    )
+    cursor.execute(query)
+
 def work(sid, pid, lng, serv):
         print('[' + Fore.GREEN + 'Run'+ Fore.RESET + '] sid %d pid %d lng %d' % (sid, pid, lng), file = sys.stderr)
 
@@ -84,12 +94,10 @@ def work(sid, pid, lng, serv):
         result_AC = 7
         if result == result_AC and cpu < trigger_of_search_bad_word and has_banned_word(lng, pid, sid):
             print('found banned word, execute')
-            query = 'UPDATE submissions SET scr = -1, res = 4, cpu={}, mem={} WHERE sid={}'.format(cpu, mem, sid)
-            cursor.execute(query)
+            updateSubmission(-1, 4, cpu, mem, sid)
             return
 
-        cursor.execute("UPDATE submissions SET scr=%s, res=%s, cpu=%s, mem=%s WHERE sid=%s" % (score, result, cpu, mem, sid))
-        #db.commit()
+        updateSubmission(score, result, cpu, mem, sid)
 
 def prepare(sid, pid, lng):
         address = butler_config['host']
