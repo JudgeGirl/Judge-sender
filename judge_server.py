@@ -23,7 +23,8 @@ def has_banned_word(lng, pid, sid):
         submission_dir = '../submission'
         sourceList = '../testdata/{}/source.lst'.format(pid)
         check_script = 'scripts/banWordCheck.py'
-        ban_word = 'fork'
+        #  ban_word = 'fork'
+        ban_word_list = ['fork', 'unistd', 'syscall']
 
         if lng != 0:
                 file_num = 1
@@ -35,8 +36,10 @@ def has_banned_word(lng, pid, sid):
 
         for file_count in range(file_num):
                 filename = '../submission/{}-{}'.format(sid, file_count)
-                if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
-                        return True
+
+                for ban_word in ban_word_list:
+                        if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
+                                return True
 
         print('good')
         return False
