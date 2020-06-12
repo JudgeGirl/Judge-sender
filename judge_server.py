@@ -54,13 +54,19 @@ def updateSubmission(scr, res, cpu, mem, sid):
         )
         cursor.execute(query)
 
+def leaveErrorMessage(sid, message):
+        filename = '../submission/{}-z'.format(sid)
+        assert os.system('echo "{}" > {}'.format(message, filename)) == 0
+
 def work(sid, pid, lng, serv):
+        print('[' + Fore.GREEN + 'Run'+ Fore.RESET + '] sid %d pid %d lng %d' % (sid, pid, lng), file = sys.stderr)
+
         # wima is down now, any submission to this server will get RE as result
         if (serv == "butler@140.112.31.200"):
                 updateSubmission(0, 4, 0, 0, sid)
+                leaveErrorMessage(sid, 'Please refer to announcement.')
+                print('[' + Fore.MAGENTA + 'Get' + Fore.RESET + '] miwa is down', file = sys.stderr)
                 return
-
-        print('[' + Fore.GREEN + 'Run'+ Fore.RESET + '] sid %d pid %d lng %d' % (sid, pid, lng), file = sys.stderr)
 
         p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
         ifp = p.stdout
