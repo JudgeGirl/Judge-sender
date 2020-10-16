@@ -120,7 +120,7 @@ def work(sid, pid, lng, serv, cursor, config):
 
     updateSubmission(score, result, cpu, mem, sid, cursor)
 
-def prepare(sid, pid, lng, butler_config):
+def get_judger_user(sid, pid, lng, butler_config):
 
     address = butler_config['host']
     account = butler_config['user']
@@ -153,8 +153,8 @@ def main():
 
         if row:
             [sid, pid, lng] = map(int, row)
-            remote = prepare(sid, pid, lng, butler_config)
-            work(sid, pid, lng, remote, cursor, config)
+            judger_user = get_judger_user(sid, pid, lng, butler_config)
+            work(sid, pid, lng, judger_user, cursor, config)
         else:
             time.sleep(butler_config['period'])
 
