@@ -60,7 +60,7 @@ def has_banned_word(lng, pid, sid, banned_words):
 
     return False
 
-def updateSubmission(scr, res, cpu, mem, sid, cursor):
+def update_submission(scr, res, cpu, mem, sid, cursor):
     query = 'UPDATE submissions SET scr = {}, res = {}, cpu={}, mem={} WHERE sid={}'.format(
         scr,
         res,
@@ -75,7 +75,7 @@ def leave_error_message(sid, message):
     filename = '../submission/{}-z'.format(sid)
     assert os.system('echo "{}" >> {}'.format(message, filename)) == 0
 
-def work(sid, pid, lng, serv, cursor, config):
+def judge_submission(sid, pid, lng, serv, cursor, config):
     color_console(Fore.GREEN, 'RUN', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
 
     p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
@@ -116,10 +116,10 @@ def work(sid, pid, lng, serv, cursor, config):
 
     if result == const.AC and cpu < config['BANNED_WORDS']['cpu_time_threshold'] and has_banned_word(lng, pid, sid, config['BANNED_WORDS']['word_list']):
         color_console(FORE.red, 'WARN', 'found banned word, execute', sys.stderr)
-        updateSubmission(-1, 4, cpu, mem, sid, cursor)
+        update_submission(-1, 4, cpu, mem, sid, cursor)
         return
 
-    updateSubmission(score, result, cpu, mem, sid, cursor)
+    update_submission(score, result, cpu, mem, sid, cursor)
 
 def get_judger_user(sid, pid, lng, butler_config):
 
@@ -155,7 +155,7 @@ def main():
         if row:
             [sid, pid, lng] = map(int, row)
             judger_user = get_judger_user(sid, pid, lng, butler_config)
-            work(sid, pid, lng, judger_user, cursor, config)
+            judge_submission(sid, pid, lng, judger_user, cursor, config)
         else:
             time.sleep(butler_config['period'])
 
