@@ -13,11 +13,11 @@ BUTLER:
     user: 'butler'
     period: 1
 
+# This section is to ban forbidden words in source file with a threshold of cpu time.
+#
+# In this example, for any accepted submission which has cpu time lower than 1147(sec), we will check if there is any word "BAD_WORDS" in the source file.
+# If so, the result of the submission will be RE with -1 in score.
 BANNED_WORDS:
-    # This section is to ban forbidden words in source file with a threshold of cpu time.
-    #
-    # In this example, for any accepted submission which has cpu time lower than 1147(sec), we will check if there is any word "BAD_WORDS" in the source file.
-    # If so, the result of the submission will be RE with -1 in score.
     word_list:
         - BAD_WORDS
     cpu_time_threshold: 1147
