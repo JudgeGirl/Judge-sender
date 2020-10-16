@@ -9,6 +9,9 @@ import time
 import yaml
 from colorama import Fore, Back, Style
 
+# user defined module
+import const
+
 def color_console(color, tag, message, out):
         print('[{}{}{}] {}'.format(color, tag, Fore.RESET, message), file=out)
 
@@ -33,12 +36,10 @@ def send(ofp, lname, rname):
         ofp.write(b)
         ofp.flush()
 
-def has_banned_word(lng, pid, sid):
+def has_banned_word(lng, pid, sid, banned_words):
         submission_dir = '../submission'
         sourceList = '../testdata/{}/source.lst'.format(pid)
         check_script = 'scripts/banWordCheck.py'
-        #  ban_word = 'fork'
-        ban_word_list = ['fork', 'unistd', 'syscall']
 
         if lng != 0:
                 file_num = 1
@@ -51,11 +52,12 @@ def has_banned_word(lng, pid, sid):
         for file_count in range(file_num):
                 filename = '../submission/{}-{}'.format(sid, file_count)
 
-                for ban_word in ban_word_list:
+                for ban_word in banned_words:
                         if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
                                 return True
 
         color_console(Fore.CYAN, 'INFO', 'passed ban word check', sys.stderr)
+
         return False
 
 def updateSubmission(scr, res, cpu, mem, sid, cursor):
@@ -72,7 +74,7 @@ def leaveErrorMessage(sid, message):
         filename = '../submission/{}-z'.format(sid)
         assert os.system('echo "{}" > {}'.format(message, filename)) == 0
 
-def work(sid, pid, lng, serv, cursor):
+def work(sid, pid, lng, serv, cursor, config):
         color_console(Fore.GREEN, 'RUN', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
 
         p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
@@ -111,9 +113,7 @@ def work(sid, pid, lng, serv, cursor):
 
         color_console(Fore.MAGENTA, 'GET', 'sid %d time %d space %d score %d' % (sid, cpu, mem, score), sys.stderr)
 
-        trigger_of_search_bad_word = 50
-        result_AC = 7
-        if result == result_AC and cpu < trigger_of_search_bad_word and has_banned_word(lng, pid, sid):
+        if result == const.AC and cpu < config['BANNED_WORDS']['cpu_time_threshold'] and has_banned_word(lng, pid, sid, config['BANNED_WORDS']['word_list']):
                 color_console(FORE.red, 'WARN', 'found banned word, execute', sys.stderr)
                 updateSubmission(-1, 4, cpu, mem, sid, cursor)
                 return
@@ -154,7 +154,7 @@ def main():
                 if row:
                         [sid, pid, lng] = map(int, row)
                         remote = prepare(sid, pid, lng, butler_config)
-                        work(sid, pid, lng, remote, cursor)
+                        work(sid, pid, lng, remote, cursor, config)
                 else:
                         time.sleep(butler_config['period'])
 
