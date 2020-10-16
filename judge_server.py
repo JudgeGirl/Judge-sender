@@ -70,9 +70,10 @@ def updateSubmission(scr, res, cpu, mem, sid, cursor):
     )
     cursor.execute(query)
 
-def leaveErrorMessage(sid, message):
+# for non AC result, we can give messages that shows in the result of the submission to user
+def leave_error_message(sid, message):
     filename = '../submission/{}-z'.format(sid)
-    assert os.system('echo "{}" > {}'.format(message, filename)) == 0
+    assert os.system('echo "{}" >> {}'.format(message, filename)) == 0
 
 def work(sid, pid, lng, serv, cursor, config):
     color_console(Fore.GREEN, 'RUN', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
