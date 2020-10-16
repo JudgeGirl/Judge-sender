@@ -55,7 +55,7 @@ def has_banned_word(lng, pid, sid):
                         if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
                                 return True
 
-        color_console(Fore.CYAN, 'Info', 'passed ban word check', sys.stderr)
+        color_console(Fore.CYAN, 'INFO', 'passed ban word check', sys.stderr)
         return False
 
 def updateSubmission(scr, res, cpu, mem, sid, cursor):
@@ -73,7 +73,7 @@ def leaveErrorMessage(sid, message):
         assert os.system('echo "{}" > {}'.format(message, filename)) == 0
 
 def work(sid, pid, lng, serv, cursor):
-        color_console(Fore.GREEN, 'Run', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
+        color_console(Fore.GREEN, 'RUN', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
 
         p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
         ifp = p.stdout
@@ -109,7 +109,7 @@ def work(sid, pid, lng, serv, cursor):
         if dtl:
                 with open('../submission/%d-z' % sid, 'wb') as fp: fp.write(dtl)
 
-        color_console(Fore.MAGENTA, 'Get', 'sid %d time %d space %d score %d' % (sid, cpu, mem, score), sys.stderr)
+        color_console(Fore.MAGENTA, 'GET', 'sid %d time %d space %d score %d' % (sid, cpu, mem, score), sys.stderr)
 
         trigger_of_search_bad_word = 50
         result_AC = 7
