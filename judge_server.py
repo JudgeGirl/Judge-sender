@@ -9,16 +9,19 @@ import time
 import yaml
 from colorama import Fore, Back, Style
 
-def get_config(config_file):
-    with open(config_file, 'r') as f:
-        config = yaml.load(f.read())
+def color_console(color, tag, message, out):
+        print('[{}{}{}] {}'.format(color, tag, Fore.RESET, message), file=out)
 
-    return config
+def get_config(config_file):
+        with open(config_file, 'r') as f:
+                config = yaml.load(f.read())
+
+        return config
 
 def get_db(host, user, password, db_name):
-    db = MySQLdb.connect(host=host, user=user, passwd=password, db=db_name)
+        db = MySQLdb.connect(host=host, user=user, passwd=password, db=db_name)
 
-    return db
+        return db
 
 def send(ofp, lname, rname):
         assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -52,10 +55,10 @@ def has_banned_word(lng, pid, sid):
                         if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
                                 return True
 
-        print('good')
+        color_console(Fore.CYAN, 'Info', 'passed ban word check', sys.stderr)
         return False
 
-def updateSubmission(scr, res, cpu, mem, sid):
+def updateSubmission(scr, res, cpu, mem, sid, cursor):
         query = 'UPDATE submissions SET scr = {}, res = {}, cpu={}, mem={} WHERE sid={}'.format(
                 scr,
                 res,
@@ -69,8 +72,8 @@ def leaveErrorMessage(sid, message):
         filename = '../submission/{}-z'.format(sid)
         assert os.system('echo "{}" > {}'.format(message, filename)) == 0
 
-def work(sid, pid, lng, serv):
-        print('[' + Fore.GREEN + 'Run'+ Fore.RESET + '] sid %d pid %d lng %d' % (sid, pid, lng), file = sys.stderr)
+def work(sid, pid, lng, serv, cursor):
+        color_console(Fore.GREEN, 'Run', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
 
         p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
         ifp = p.stdout
@@ -106,18 +109,19 @@ def work(sid, pid, lng, serv):
         if dtl:
                 with open('../submission/%d-z' % sid, 'wb') as fp: fp.write(dtl)
 
-        print('[' + Fore.MAGENTA + 'Get' + Fore.RESET + '] sid %d time %d space %d score %d' % (sid, cpu, mem, score), file = sys.stderr)
+        color_console(Fore.MAGENTA, 'Get', 'sid %d time %d space %d score %d' % (sid, cpu, mem, score), sys.stderr)
 
         trigger_of_search_bad_word = 50
         result_AC = 7
         if result == result_AC and cpu < trigger_of_search_bad_word and has_banned_word(lng, pid, sid):
-                print('found banned word, execute')
-                updateSubmission(-1, 4, cpu, mem, sid)
+                color_console(FORE.red, 'WARN', 'found banned word, execute', sys.stderr)
+                updateSubmission(-1, 4, cpu, mem, sid, cursor)
                 return
 
-        updateSubmission(score, result, cpu, mem, sid)
+        updateSubmission(score, result, cpu, mem, sid, cursor)
 
-def prepare(sid, pid, lng):
+def prepare(sid, pid, lng, butler_config):
+
         address = butler_config['host']
         account = butler_config['user']
         try:
@@ -126,23 +130,33 @@ def prepare(sid, pid, lng):
                         (address, account) = (info[0][0], info[0][1])
         except:
                 pass
-        work(sid, pid, lng, '%s@%s' % (account, address))
+
+        return '{}@{}'.format(account, address)
 
 def main():
-        print('[' + Fore.GREEN + 'INFO' + Fore.RESET + '] Load submitted code ...', file = sys.stderr)
+        config = get_config('_config.yml')
+
+        # get butler config
+        butler_config = config['BUTLER']
+
+        # get db cursor
+        db_config = config['DATABASE']
+        db = get_db(db_config['host'], db_config['user'], db_config['password'], db_config['database'])
+        cursor = db.cursor()
+
+        # start polling
+        color_console(Fore.GREEN, 'INFO', 'Load submitted code ...', sys.stderr)
         while True:
+                # get submission info
                 cursor.execute('SELECT sid, pid, lng FROM submissions WHERE res = 0 ORDER BY sid LIMIT 1')
                 row = cursor.fetchone()
+
                 if row:
-                        prepare(int(row[0]), int(row[1]), int(row[2]))
+                        [sid, pid, lng] = map(int, row)
+                        remote = prepare(sid, pid, lng, butler_config)
+                        work(sid, pid, lng, remote, cursor)
                 else:
                         time.sleep(butler_config['period'])
 
 assert __name__ == '__main__'
-
-config = get_config('_config.yml')
-butler_config = config['BUTLER']
-db_config = config['DATABASE']
-db = get_db(db_config['host'], db_config['user'], db_config['password'], db_config['database'])
-cursor = db.cursor()
 main()
