@@ -13,7 +13,7 @@ from colorama import Fore, Back, Style
 import const
 
 def color_console(color, tag, message, out):
-        print('[{}{}{}] {}'.format(color, tag, Fore.RESET, message), file=out)
+        print('[{}{:<4}{}] {}'.format(color, tag, Fore.RESET, message), file=out)
 
 def get_config(config_file):
         with open(config_file, 'r') as f:
