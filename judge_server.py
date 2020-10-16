@@ -9,6 +9,17 @@ import time
 import yaml
 from colorama import Fore, Back, Style
 
+def get_config(config_file):
+    with open(config_file, 'r') as f:
+        config = yaml.load(f.read())
+
+    return config
+
+def get_db(host, user, password, db_name):
+    db = MySQLdb.connect(host=host, user=user, passwd=password, db=db_name)
+
+    return db
+
 def send(ofp, lname, rname):
         assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
         with open('/run/shm/judge_server.tgz', 'rb') as fp: b = fp.read()
@@ -60,13 +71,6 @@ def leaveErrorMessage(sid, message):
 
 def work(sid, pid, lng, serv):
         print('[' + Fore.GREEN + 'Run'+ Fore.RESET + '] sid %d pid %d lng %d' % (sid, pid, lng), file = sys.stderr)
-
-        # wima is down now, any submission to this server will get RE as result
-        if (serv == "butler@140.112.31.200"):
-                updateSubmission(0, 4, 0, 0, sid)
-                leaveErrorMessage(sid, 'Please refer to announcement.')
-                print('[' + Fore.MAGENTA + 'Get' + Fore.RESET + '] miwa is down', file = sys.stderr)
-                return
 
         p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
         ifp = p.stdout
@@ -136,10 +140,9 @@ def main():
 
 assert __name__ == '__main__'
 
-with open('_config.yml', 'r') as config_file:
-        config = yaml.load(config_file.read())
-        db_config = config['DATABASE']
-        butler_config = config['BUTLER']
-        db = MySQLdb.connect(host=db_config['host'], user=db_config['user'], passwd=db_config['password'], db=db_config['database'])
-        cursor = db.cursor()
-        main()
+config = get_config('_config.yml')
+butler_config = config['BUTLER']
+db_config = config['DATABASE']
+db = get_db(db_config['host'], db_config['user'], db_config['password'], db_config['database'])
+cursor = db.cursor()
+main()
