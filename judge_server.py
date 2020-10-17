@@ -1,8 +1,5 @@
 import binascii
 import os
-import signal
-import pymysql
-import MySQLdb
 import subprocess
 import sys
 import time
@@ -11,6 +8,7 @@ from colorama import Fore, Back, Style
 
 # user defined module
 import const
+from common import DB
 
 def color_console(color, tag, message, out):
     print('[{}{:<4}{}] {}'.format(color, tag, Fore.RESET, message), file=out)
@@ -20,11 +18,6 @@ def get_config(config_file):
         config = yaml.load(f.read())
 
     return config
-
-def get_db(host, user, password, db_name):
-    db = MySQLdb.connect(host=host, user=user, passwd=password, db=db_name)
-
-    return db
 
 def send(ofp, lname, rname):
     assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -56,26 +49,16 @@ def has_banned_word(lng, pid, sid, banned_words):
             if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
                 return True
 
-    color_console(Fore.CYAN, 'INFO', 'passed ban word check', sys.stderr)
+    color_console(Fore.CYAN, 'INFO', 'passed ban words check', sys.stderr)
 
     return False
-
-def update_submission(scr, res, cpu, mem, sid, cursor):
-    query = 'UPDATE submissions SET scr = {}, res = {}, cpu={}, mem={} WHERE sid={}'.format(
-        scr,
-        res,
-        cpu,
-        mem,
-        sid
-    )
-    cursor.execute(query)
 
 # for non AC result, we can give messages that shows in the result of the submission to user
 def leave_error_message(sid, message):
     filename = '../submission/{}-z'.format(sid)
     assert os.system('echo "{}" >> {}'.format(message, filename)) == 0
 
-def judge_submission(sid, pid, lng, serv, cursor, config):
+def judge_submission(sid, pid, lng, serv, db, config):
     color_console(Fore.GREEN, 'RUN', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
 
     p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
@@ -116,10 +99,11 @@ def judge_submission(sid, pid, lng, serv, cursor, config):
 
     if result == const.AC and cpu < config['BANNED_WORDS']['cpu_time_threshold'] and has_banned_word(lng, pid, sid, config['BANNED_WORDS']['word_list']):
         color_console(FORE.red, 'WARN', 'found banned word, execute', sys.stderr)
-        update_submission(-1, 4, cpu, mem, sid, cursor)
+
+        db.update_submission(-1, 4, cpu, mem, sid)
         return
 
-    update_submission(score, result, cpu, mem, sid, cursor)
+    db.update_submission(score, result, cpu, mem, sid)
 
 def get_judger_user(sid, pid, lng, butler_config):
 
@@ -140,24 +124,23 @@ def main():
     # get butler config
     butler_config = config['BUTLER']
 
-    # get db cursor
+    # get database
     db_config = config['DATABASE']
-    db = get_db(db_config['host'], db_config['user'], db_config['password'], db_config['database'])
-    cursor = db.cursor()
+    db = DB(db_config['host'], db_config['user'], db_config['password'], db_config['database'])
 
     # start polling
     color_console(Fore.GREEN, 'INFO', 'Load submitted code ...', sys.stderr)
     while True:
         # get submission info
-        cursor.execute('SELECT sid, pid, lng FROM submissions WHERE res = 0 ORDER BY sid LIMIT 1')
-        row = cursor.fetchone()
+        row = db.get_next_submission_to_judge()
 
-        if row:
-            [sid, pid, lng] = map(int, row)
-            judger_user = get_judger_user(sid, pid, lng, butler_config)
-            judge_submission(sid, pid, lng, judger_user, cursor, config)
-        else:
+        if row == None:
             time.sleep(butler_config['period'])
+            continue
+
+        [sid, pid, lng] = row
+        judger_user = get_judger_user(sid, pid, lng, butler_config)
+        judge_submission(sid, pid, lng, judger_user, db, config)
 
 assert __name__ == '__main__'
 main()
