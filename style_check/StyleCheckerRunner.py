@@ -17,8 +17,8 @@ class StyleCheckerRunner:
         report = process.stdout.read()
 
         # clean up
-        os.remove("a.out")
-        os.remove(compilable)
+        self.try_delete("a.out")
+        self.try_delete(compilable)
 
         return report.decode('utf-8')
 
@@ -29,3 +29,9 @@ class StyleCheckerRunner:
         report_file = '{}/{}'.format(self.report_directory, report_filename)
         if os.path.isfile(report_file):
             os.remove(report_file)
+
+    def try_delete(self, filename):
+        try:
+            os.remove(filename)
+        except FileNotFoundError as e:
+            print(e)
