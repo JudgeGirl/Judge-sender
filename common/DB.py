@@ -8,7 +8,8 @@ class DB:
         self.cursor = db.cursor()
 
     def write_report(self, sid, content):
-        query = 'INSERT INTO reports (sid, content) VALUES ({}, "{}")'.format(sid, content)
+        escaped = MySQLdb.escape_string(content)
+        query = 'INSERT INTO reports (sid, content) VALUES ({}, "{}") ON DUPLICATE KEY UPDATE content = "{}"'.format(sid, escaped, escaped)
         self.cursor.execute(query)
         self.db.commit()
 
