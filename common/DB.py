@@ -1,8 +1,9 @@
 import MySQLdb
 
 class DB:
-    def __init__(self, host, user, password, db_name):
-        db = MySQLdb.connect(host=host, user=user, passwd=password, db=db_name)
+    def __init__(self, config):
+        db_config = config['DATABASE']
+        db = MySQLdb.connect(host=db_config['host'], user=db_config['user'], passwd=db_config['password'], db=db_config['database'])
         self.db = db
         self.cursor = db.cursor()
 

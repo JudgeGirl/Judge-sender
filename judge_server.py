@@ -8,16 +8,10 @@ from colorama import Fore, Back, Style
 
 # user defined module
 import const
-from common import DB
+from common import Config, DB
 
 def color_console(color, tag, message, out):
     print('[{}{:<4}{}] {}'.format(color, tag, Fore.RESET, message), file=out)
-
-def get_config(config_file):
-    with open(config_file, 'r') as f:
-        config = yaml.load(f.read())
-
-    return config
 
 def send(ofp, lname, rname):
     assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -49,7 +43,7 @@ def has_banned_word(lng, pid, sid, banned_words):
             if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
                 return True
 
-    color_console(Fore.CYAN, 'INFO', 'passed ban words check', sys.stderr)
+    color_console(Fore.YELLOW, 'INFO', 'passed ban words check', sys.stderr)
 
     return False
 
@@ -107,8 +101,11 @@ def judge_submission(sid, pid, lng, serv, db, config):
 
 def get_judger_user(sid, pid, lng, butler_config):
 
+    # default judging host
     address = butler_config['host']
     account = butler_config['user']
+
+    # check if the problem has specified a judging host
     try:
         with open('../testdata/%d/server.py' % pid) as fp:
             info = eval(fp.read())
@@ -119,17 +116,16 @@ def get_judger_user(sid, pid, lng, butler_config):
     return '{}@{}'.format(account, address)
 
 def main():
-    config = get_config('_config.yml')
+    config = Config('_config.yml')
 
     # get butler config
     butler_config = config['BUTLER']
 
     # get database
-    db_config = config['DATABASE']
-    db = DB(db_config['host'], db_config['user'], db_config['password'], db_config['database'])
+    db = DB(config)
 
     # start polling
-    color_console(Fore.GREEN, 'INFO', 'Load submitted code ...', sys.stderr)
+    color_console(Fore.YELLOW, 'INFO', 'Load submitted code ...', sys.stderr)
     while True:
         # get submission info
         row = db.get_next_submission_to_judge()
