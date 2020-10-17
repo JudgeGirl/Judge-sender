@@ -9,8 +9,9 @@ from colorama import Fore, Back, Style
 # user defined module
 import const
 from common import Config, DB
+from style_check import Code, ReportManager, StyleCheckerRunner
 
-def color_console(color, tag, message, out):
+def color_console(color, tag, message, out=sys.stderr):
     print('[{}{:<4}{}] {}'.format(color, tag, Fore.RESET, message), file=out)
 
 def send(ofp, lname, rname):
@@ -43,7 +44,7 @@ def has_banned_word(lng, pid, sid, banned_words):
             if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
                 return True
 
-    color_console(Fore.YELLOW, 'INFO', 'passed ban words check', sys.stderr)
+    color_console(Fore.CYAN, 'INFO', 'passed ban words check', sys.stderr)
 
     return False
 
@@ -51,6 +52,19 @@ def has_banned_word(lng, pid, sid, banned_words):
 def leave_error_message(sid, message):
     filename = '../submission/{}-z'.format(sid)
     assert os.system('echo "{}" >> {}'.format(message, filename)) == 0
+
+def generate_style_report(sid, codes, db, checker_executable):
+    runner = StyleCheckerRunner()
+    rm = ReportManager()
+
+    for code in codes:
+        result = runner.check_report(checker_executable, code)
+        rm.add_report(code.source_name, result)
+
+    db.write_report(sid, rm.get_report())
+
+def get_language_extension(filename):
+    return filename.split('.')[-1]
 
 def judge_submission(sid, pid, lng, serv, db, config):
     color_console(Fore.GREEN, 'RUN', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
@@ -60,14 +74,28 @@ def judge_submission(sid, pid, lng, serv, db, config):
     ofp = p.stdin
     send(ofp, './const.py', 'const.py')
     send(ofp, '../testdata/%d/judge' % pid, 'judge')
+    codes = []
+
+    # send submission codes from the user
     if lng != 0:
-        send(ofp, '../submission/%d-0' % sid, 'source')
+        source_name = 'main.c' # default name of source file. should change if we allow other language
+        source_file = '../submission/{}-0'.format(sid)
+
+        send(ofp, source_file, 'source')
+        codes.append(Code(source_name, source_file, 'c'))
     else:
         with open('../testdata/%d/source.lst' % pid) as fp:
             i = 0
             for fn in fp.readlines():
-                send(ofp, '../submission/%d-%d' % (sid, i), fn[:-1])
+                source_name = fn[:-1]
+                source_file = '../submission/{}-{}'.format(sid, i)
+
+                send(ofp, source_file, source_name)
+                codes.append(Code(source_name, source_file, get_language_extension(source_name)))
+
                 i += 1
+
+    # send prepared codes from TA
     try:
         with open('../testdata/%d/send.lst' % pid) as fp:
             for fn in fp.readlines():
@@ -92,10 +120,15 @@ def judge_submission(sid, pid, lng, serv, db, config):
     color_console(Fore.MAGENTA, 'GET', 'sid %d time %d space %d score %d' % (sid, cpu, mem, score), sys.stderr)
 
     if result == const.AC and cpu < config['BANNED_WORDS']['cpu_time_threshold'] and has_banned_word(lng, pid, sid, config['BANNED_WORDS']['word_list']):
-        color_console(FORE.red, 'WARN', 'found banned word, execute', sys.stderr)
+        color_console(Fore.RED, 'WARN', 'found banned word, execute', sys.stderr)
 
         db.update_submission(-1, 4, cpu, mem, sid)
         return
+
+    # do style check if code passes
+    if result == const.AC and lng != 0:
+        color_console(Fore.GREEN, 'RUN', 'building cyclomatic complexity report')
+        generate_style_report(sid, codes, db, config['STYLE_CHECK']['executable'])
 
     db.update_submission(score, result, cpu, mem, sid)
 
@@ -125,7 +158,7 @@ def main():
     db = DB(config)
 
     # start polling
-    color_console(Fore.YELLOW, 'INFO', 'Load submitted code ...', sys.stderr)
+    color_console(Fore.CYAN, 'INFO', 'Load submitted code ...', sys.stderr)
     while True:
         # get submission info
         row = db.get_next_submission_to_judge()
@@ -137,6 +170,8 @@ def main():
         [sid, pid, lng] = row
         judger_user = get_judger_user(sid, pid, lng, butler_config)
         judge_submission(sid, pid, lng, judger_user, db, config)
+
+        color_console(Fore.CYAN, 'INFO', 'finish judging')
 
 assert __name__ == '__main__'
 main()
