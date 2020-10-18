@@ -21,3 +21,8 @@ BANNED_WORDS:
     word_list:
         - BAD_WORDS
     cpu_time_threshold: 1147
+
+# This function will require non-release version of JudgeNode, default to disabled for compatibility.
+STYLE_CHECK:
+    enabled: False
+    executable: '<executable>'

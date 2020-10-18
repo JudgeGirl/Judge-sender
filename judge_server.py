@@ -126,7 +126,7 @@ def judge_submission(sid, pid, lng, serv, db, config):
         return
 
     # do style check if code passes
-    if result == const.AC and lng != 0:
+    if config['STYLE_CHECK']['enabled'] and result == const.AC and lng != 0:
         color_console(Fore.GREEN, 'RUN', 'building cyclomatic complexity report')
         generate_style_report(sid, codes, db, config['STYLE_CHECK']['executable'])
 
