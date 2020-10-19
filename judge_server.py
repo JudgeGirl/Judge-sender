@@ -8,11 +8,8 @@ from colorama import Fore, Back, Style
 
 # user defined module
 import const
-from common import Config, DB
+from common import Config, DB, Logger
 from style_check import Code, ReportManager, StyleCheckerRunner
-
-def color_console(color, tag, message, out=sys.stderr):
-    print('[{}{:<4}{}] {}'.format(color, tag, Fore.RESET, message), file=out)
 
 def send(ofp, lname, rname):
     assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -44,7 +41,7 @@ def has_banned_word(lng, pid, sid, banned_words):
             if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
                 return True
 
-    color_console(Fore.CYAN, 'INFO', 'passed ban words check', sys.stderr)
+    Logger.info('Passed ban words check')
 
     return False
 
@@ -67,7 +64,7 @@ def get_language_extension(filename):
     return filename.split('.')[-1]
 
 def judge_submission(sid, pid, lng, serv, db, config):
-    color_console(Fore.GREEN, 'RUN', 'sid %d pid %d lng %d' % (sid, pid, lng), sys.stderr)
+    Logger.sid(sid, 'RUN sid %d pid %d lng %d' % (sid, pid, lng))
 
     p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
     ifp = p.stdout
@@ -117,17 +114,17 @@ def judge_submission(sid, pid, lng, serv, db, config):
     if dtl:
         with open('../submission/%d-z' % sid, 'wb') as fp: fp.write(dtl)
 
-    color_console(Fore.MAGENTA, 'GET', 'sid %d time %d space %d score %d' % (sid, cpu, mem, score), sys.stderr)
+    Logger.sid(sid, 'GET sid %d time %d space %d score %d' % (sid, cpu, mem, score))
 
     if result == const.AC and cpu < config['BANNED_WORDS']['cpu_time_threshold'] and has_banned_word(lng, pid, sid, config['BANNED_WORDS']['word_list']):
-        color_console(Fore.RED, 'WARN', 'found banned word, execute', sys.stderr)
+        Logger.warn('found banned word, execute')
 
         db.update_submission(-1, 4, cpu, mem, sid)
         return
 
     # do style check if code passes
     if config['STYLE_CHECK']['enabled'] and result == const.AC and lng != 0:
-        color_console(Fore.GREEN, 'RUN', 'building cyclomatic complexity report')
+        Logger.sid(sid, 'Building cyclomatic complexity report')
         generate_style_report(sid, codes, db, config['STYLE_CHECK']['executable'])
 
     db.update_submission(score, result, cpu, mem, sid)
@@ -158,7 +155,7 @@ def main():
     db = DB(config)
 
     # start polling
-    color_console(Fore.CYAN, 'INFO', 'Load submitted code ...', sys.stderr)
+    Logger.info('Load submitted code ...')
     while True:
         # get submission info
         row = db.get_next_submission_to_judge()
@@ -168,10 +165,11 @@ def main():
             continue
 
         [sid, pid, lng] = row
+        Logger.run("Start judging a submission")
         judger_user = get_judger_user(sid, pid, lng, butler_config)
         judge_submission(sid, pid, lng, judger_user, db, config)
 
-        color_console(Fore.CYAN, 'INFO', 'finish judging')
+        Logger.info('Finish judging')
 
 assert __name__ == '__main__'
 main()
