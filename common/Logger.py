@@ -23,6 +23,10 @@ class Logger:
         cls.color_stderr(cls.F_YELLOW, 'WARN', message)
 
     @classmethod
+    def error(cls, message):
+        cls.color_stderr(cls.F_RED, 'ERROR', message)
+
+    @classmethod
     def run(cls, message):
         cls.color_stderr(cls.F_BLUE, 'RUN', message)
 

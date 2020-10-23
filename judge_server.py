@@ -171,5 +171,12 @@ def main():
 
         Logger.info('Finish judging')
 
-assert __name__ == '__main__'
-main()
+if __name__ == '__main__':
+    while(True):
+        try:
+            main()
+
+        except Exception as e:
+            Logger.error(e)
+
+        time.sleep(5)
