@@ -47,6 +47,11 @@ def leave_error_message(sid, message):
     filename = '../submission/{}-z'.format(sid)
     assert os.system('echo "{}" >> {}'.format(message, filename)) == 0
 
+def get_filename(file_path):
+    filename = file_path.split('/')[-1]
+    filename = '.'.join(filename.split('.')[:-1])
+    return filename
+
 def get_language_extension(filename):
     return filename.split('.')[-1]
 
@@ -62,7 +67,7 @@ def judge_submission(sid, pid, lng, serv, db, config, handle_style_check):
 
     # send submission codes from the user
     if lng != 0:
-        source_name = 'main.c' # default name of source file. should change if we allow other language
+        source_name = 'main' # default name of source file. should change if we allow other language
         source_file = '../submission/{}-0'.format(sid)
 
         send(ofp, source_file, 'source')
