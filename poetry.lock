@@ -222,7 +222,7 @@ iniconfig = [
     {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
 ]
 judge-common = [
-    {file = "judge_common-0.1.5-py3-none-any.whl", hash = "sha256:7476d00425fdd715db419db443dfbefb4b64ab9038be8db34bd58be54907c096"},
+    {file = "judge_common-0.1.5-py3-none-any.whl", hash = "sha256:d243378435166d3374091f9ec2ffac6ac2c0eb5f3e968d318792df4145162a41"},
 ]
 packaging = [
     {file = "packaging-20.4-py2.py3-none-any.whl", hash = "sha256:998416ba6962ae7fbd6596850b80e17859a5753ba17c32284f67bfff33784181"},

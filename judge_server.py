@@ -8,6 +8,43 @@ import time
 import const, pika
 from judge_common import Config, DB, Logger, WorkQueueSender, LazyLoadingCode, CodePackSerializer, CodePack
 
+class StyleCheckHandler:
+    def __init__(self, config):
+        self.config = config
+        self.enabled = config['STYLE_CHECK']['enabled']
+
+        if self.enabled:
+            self.work_queue_sender = WorkQueueSender(config['RBMQ']['host'], 'style_check_task')
+            self.serializer = CodePackSerializer()
+
+    def handle(self, code_pack):
+        config = self.config
+
+        if not self.enabled:
+            return
+
+        # no handle for multiple codes
+        if len(code_pack) != 1:
+            return
+
+        for retry in range(5):
+            try:
+                code_pack_str = self.serializer.serialize(code_pack)
+                self.work_queue_sender.send(code_pack_str)
+
+            except Exception as e:
+                Logger.error("failed to send code pack({})".format(retry))
+                Logger.error(e)
+
+                # renew WorkQueueSender
+                self.work_queue_sender = WorkQueueSender(self.config['RBMQ']['host'], 'style_check_task')
+            else:
+                break;
+        else:
+            raise Exception('exceed tetry limit')
+
+        return
+
 def send(ofp, lname, rname):
     assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
     with open('/run/shm/judge_server.tgz', 'rb') as fp: b = fp.read()
@@ -55,7 +92,7 @@ def get_filename(file_path):
 def get_language_extension(filename):
     return filename.split('.')[-1]
 
-def judge_submission(sid, pid, lng, serv, db, config, handle_style_check):
+def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
     Logger.sid(sid, 'RUN sid %d pid %d lng %d' % (sid, pid, lng))
 
     p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
@@ -116,7 +153,7 @@ def judge_submission(sid, pid, lng, serv, db, config, handle_style_check):
 
     # do style check if code passes
     if result == const.AC and lng == 1:
-        handle_style_check(code_pack)
+        style_check_handler.handle(code_pack)
 
     db.update_submission(score, result, cpu, mem, sid)
 
@@ -136,28 +173,6 @@ def get_judger_user(sid, pid, lng, butler_config):
 
     return '{}@{}'.format(account, address)
 
-def get_style_check_handler(config):
-    # get work queue sender
-
-    if config['STYLE_CHECK']['enabled']:
-        work_queue_sender = WorkQueueSender(config['RBMQ']['host'], 'style_check_task')
-        serializer = CodePackSerializer()
-
-        def handler(code_pack):
-            if len(code_pack) != 1:
-                return
-
-            code_pack_str = serializer.serialize(code_pack)
-            work_queue_sender.send(code_pack_str)
-
-            return
-    else:
-        def handler(code_pack):
-            # do nothing
-            return False
-
-    return handler
-
 def main():
     config = Config('_config.yml')
 
@@ -168,7 +183,7 @@ def main():
     db = DB(config)
 
     # style check handler
-    handle_style_check = get_style_check_handler(config)
+    style_check_handler = StyleCheckHandler(config)
 
     # start polling
     Logger.info('Load submitted code ...')
@@ -183,7 +198,7 @@ def main():
         [sid, pid, lng] = row
         Logger.run("Start judging a submission")
         judger_user = get_judger_user(sid, pid, lng, butler_config)
-        judge_submission(sid, pid, lng, judger_user, db, config, handle_style_check)
+        judge_submission(sid, pid, lng, judger_user, db, config, style_check_handler)
 
         Logger.info('Finish judging')
 
@@ -191,9 +206,6 @@ if __name__ == '__main__':
     while(True):
         try:
             main()
-
-        except pika.exceptions.StreamLostError as e:
-            Logger.error(e)
 
         except Exception as e:
             Logger.error(e)
