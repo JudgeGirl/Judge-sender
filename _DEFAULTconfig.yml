@@ -25,4 +25,8 @@ BANNED_WORDS:
 # This function will require non-release version of JudgeNode, default to disabled for compatibility.
 STYLE_CHECK:
     enabled: False
-    executable: '<executable>'
+
+# No usage if style check is disabled.
+RBMQ:
+    host: 'localhost'
+    style_check_queue: 'style_check_task'

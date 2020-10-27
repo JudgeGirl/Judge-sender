@@ -3,13 +3,10 @@ import os
 import subprocess
 import sys
 import time
-import yaml
-from colorama import Fore, Back, Style
 
 # user defined module
-import const
-from common import Config, DB, Logger
-from style_check import Code, ReportManager, StyleCheckerRunner
+import const, pika
+from judge_common import Config, DB, Logger, WorkQueueSender, LazyLoadingCode, CodePackSerializer, CodePack
 
 def send(ofp, lname, rname):
     assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -50,20 +47,10 @@ def leave_error_message(sid, message):
     filename = '../submission/{}-z'.format(sid)
     assert os.system('echo "{}" >> {}'.format(message, filename)) == 0
 
-def generate_style_report(sid, codes, db, checker_executable):
-    runner = StyleCheckerRunner()
-    rm = ReportManager()
-
-    for code in codes:
-        result = runner.check_report(checker_executable, code)
-        rm.add_report(code.source_name, result)
-
-    db.write_report(sid, rm.get_report())
-
 def get_language_extension(filename):
     return filename.split('.')[-1]
 
-def judge_submission(sid, pid, lng, serv, db, config):
+def judge_submission(sid, pid, lng, serv, db, config, handle_style_check):
     Logger.sid(sid, 'RUN sid %d pid %d lng %d' % (sid, pid, lng))
 
     p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
@@ -71,7 +58,7 @@ def judge_submission(sid, pid, lng, serv, db, config):
     ofp = p.stdin
     send(ofp, './const.py', 'const.py')
     send(ofp, '../testdata/%d/judge' % pid, 'judge')
-    codes = []
+    code_pack = CodePack(sid)
 
     # send submission codes from the user
     if lng != 0:
@@ -79,7 +66,7 @@ def judge_submission(sid, pid, lng, serv, db, config):
         source_file = '../submission/{}-0'.format(sid)
 
         send(ofp, source_file, 'source')
-        codes.append(Code(source_name, source_file, 'c'))
+        code_pack.add_code(LazyLoadingCode(source_name, 'c', source_file))
     else:
         with open('../testdata/%d/source.lst' % pid) as fp:
             i = 0
@@ -88,7 +75,7 @@ def judge_submission(sid, pid, lng, serv, db, config):
                 source_file = '../submission/{}-{}'.format(sid, i)
 
                 send(ofp, source_file, source_name)
-                codes.append(Code(source_name, source_file, get_language_extension(source_name)))
+                code_pack.add_code(LazyLoadingCode(source_name, get_language_extension(source_name), source_file))
 
                 i += 1
 
@@ -123,9 +110,8 @@ def judge_submission(sid, pid, lng, serv, db, config):
         return
 
     # do style check if code passes
-    if config['STYLE_CHECK']['enabled'] and result == const.AC and lng != 0:
-        Logger.sid(sid, 'Building cyclomatic complexity report')
-        generate_style_report(sid, codes, db, config['STYLE_CHECK']['executable'])
+    if result == const.AC and lng == 1:
+        handle_style_check(code_pack)
 
     db.update_submission(score, result, cpu, mem, sid)
 
@@ -145,6 +131,28 @@ def get_judger_user(sid, pid, lng, butler_config):
 
     return '{}@{}'.format(account, address)
 
+def get_style_check_handler(config):
+    # get work queue sender
+
+    if config['STYLE_CHECK']['enabled']:
+        work_queue_sender = WorkQueueSender(config['RBMQ']['host'], 'style_check_task')
+        serializer = CodePackSerializer()
+
+        def handler(code_pack):
+            if len(code_pack) != 1:
+                return
+
+            code_pack_str = serializer.serialize(code_pack)
+            work_queue_sender.send(code_pack_str)
+
+            return
+    else:
+        def handler(code_pack):
+            # do nothing
+            return False
+
+    return handler
+
 def main():
     config = Config('_config.yml')
 
@@ -153,6 +161,9 @@ def main():
 
     # get database
     db = DB(config)
+
+    # style check handler
+    handle_style_check = get_style_check_handler(config)
 
     # start polling
     Logger.info('Load submitted code ...')
@@ -167,7 +178,7 @@ def main():
         [sid, pid, lng] = row
         Logger.run("Start judging a submission")
         judger_user = get_judger_user(sid, pid, lng, butler_config)
-        judge_submission(sid, pid, lng, judger_user, db, config)
+        judge_submission(sid, pid, lng, judger_user, db, config, handle_style_check)
 
         Logger.info('Finish judging')
 
@@ -176,7 +187,11 @@ if __name__ == '__main__':
         try:
             main()
 
+        except pika.exceptions.StreamLostError as e:
+            Logger.error(e)
+
         except Exception as e:
             Logger.error(e)
+            raise e
 
         time.sleep(5)
