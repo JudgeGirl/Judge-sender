@@ -17,6 +17,9 @@ class StyleCheckHandler:
             self.work_queue_sender = WorkQueueSender(config['RBMQ']['host'], 'style_check_task')
             self.serializer = CodePackSerializer()
 
+        self.heartbeat_threshold = 5
+        self.heartbeat_count = 0
+
     def handle(self, code_pack):
         config = self.config
 
@@ -44,6 +47,12 @@ class StyleCheckHandler:
             raise Exception('exceed tetry limit')
 
         return
+
+    def send_heartbeat(self):
+        self.heartbeat_count += 1
+
+        if self.heartbeat_count % self.heartbeat_threshold == 0:
+            self.work_queue_sender.send_heartbeat()
 
 def send(ofp, lname, rname):
     assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -190,6 +199,8 @@ def main():
     while True:
         # get submission info
         row = db.get_next_submission_to_judge()
+
+        style_check_handler.send_heartbeat()
 
         if row == None:
             time.sleep(butler_config['period'])
