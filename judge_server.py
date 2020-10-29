@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import time
+import pymysql, traceback
 
 # user defined module
 import const, pika
@@ -217,6 +218,12 @@ if __name__ == '__main__':
     while(True):
         try:
             main()
+
+        except pymysql.err.OperationalError as e:
+            Logger.error(e)
+            traceback.print_exc()
+
+            time.sleep(5)
 
         except Exception as e:
             Logger.error(e)
