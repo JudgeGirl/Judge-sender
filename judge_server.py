@@ -7,53 +7,10 @@ import pymysql, traceback
 
 # user defined module
 import const, pika
-from judge_common import Config, DB, Logger, WorkQueueSender, LazyLoadingCode, CodePackSerializer, CodePack
+from judge_common import CodePack, Config, DB, LazyLoadingCode, Logger
 
-class StyleCheckHandler:
-    def __init__(self, config):
-        self.config = config
-        self.enabled = config['STYLE_CHECK']['enabled']
+from judge_sender.style_check_handler import StyleCheckHandler
 
-        if self.enabled:
-            self.work_queue_sender = WorkQueueSender(config['RBMQ']['host'], 'style_check_task')
-            self.serializer = CodePackSerializer()
-
-        self.heartbeat_threshold = 5
-        self.heartbeat_count = 0
-
-    def handle(self, code_pack):
-        config = self.config
-
-        if not self.enabled:
-            return
-
-        # no handle for multiple codes
-        if len(code_pack) != 1:
-            return
-
-        for retry in range(5):
-            try:
-                code_pack_str = self.serializer.serialize(code_pack)
-                self.work_queue_sender.send(code_pack_str)
-
-            except Exception as e:
-                Logger.error("failed to send code pack({})".format(retry))
-                Logger.error(e)
-
-                # renew WorkQueueSender
-                self.work_queue_sender = WorkQueueSender(self.config['RBMQ']['host'], 'style_check_task')
-            else:
-                break;
-        else:
-            raise Exception('exceed tetry limit')
-
-        return
-
-    def send_heartbeat(self):
-        self.heartbeat_count += 1
-
-        if self.heartbeat_count % self.heartbeat_threshold == 0:
-            self.work_queue_sender.send_heartbeat()
 
 def send(ofp, lname, rname):
     assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -92,7 +49,7 @@ def has_banned_word(lng, pid, sid, banned_words):
 # for non AC result, we can give messages that shows in the result of the submission to user
 def leave_error_message(sid, message):
     filename = '../submission/{}-z'.format(sid)
-    assert os.system('echo "{}" >> {}'.format(message, filename)) == 0
+    assert os.system('echo "{}" > {}'.format(message, filename)) == 0
 
 def get_filename(file_path):
     filename = file_path.split('/')[-1]
@@ -210,7 +167,14 @@ def main():
         [sid, pid, lng] = row
         Logger.run("Start judging a submission")
         judger_user = get_judger_user(sid, pid, lng, butler_config)
-        judge_submission(sid, pid, lng, judger_user, db, config, style_check_handler)
+
+        # miwa is down, leave error message
+        if (judger_user == "butler@140.112.31.200"):
+            db.update_submission(0, 4, 0, 0, sid)
+            leave_error_message(sid, 'Please refer to the announcement.')
+            Logger.warn('miwa is down')
+        else:
+            judge_submission(sid, pid, lng, judger_user, db, config, style_check_handler)
 
         Logger.info('Finish judging')
 
