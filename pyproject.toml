@@ -5,8 +5,8 @@ description = ""
 authors = ["Daniel1147 <r08922169@ntu.edu.tw>"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-judge-common = {path = "dependency/judge_common-0.1.5-py3-none-any.whl"}
+python = "^3.7"
+judge-common = {path = "dependency/judge_common-0.1.7-py3-none-any.whl"}
 
 [tool.poetry.dev-dependencies]
 
