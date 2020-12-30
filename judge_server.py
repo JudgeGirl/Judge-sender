@@ -168,13 +168,7 @@ def main():
         Logger.run("Start judging a submission")
         judger_user = get_judger_user(sid, pid, lng, butler_config)
 
-        # miwa is down, leave error message
-        if (judger_user == "butler@140.112.31.200"):
-            db.update_submission(0, 4, 0, 0, sid)
-            leave_error_message(sid, 'Please refer to the announcement.')
-            Logger.warn('miwa is down')
-        else:
-            judge_submission(sid, pid, lng, judger_user, db, config, style_check_handler)
+        judge_submission(sid, pid, lng, judger_user, db, config, style_check_handler)
 
         Logger.info('Finish judging')
 
