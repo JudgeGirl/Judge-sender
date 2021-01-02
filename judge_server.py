@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 import pymysql, traceback
+from typing import Dict
 
 # user defined module
 import const, pika
@@ -11,6 +12,7 @@ from judge_common import CodePack, Config, DB, LazyLoadingCode, Logger
 
 from judge_sender.style_check_handler import StyleCheckHandler
 
+resource: Dict[str, int] = {}
 
 def send(ofp, lname, rname):
     assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
@@ -24,7 +26,7 @@ def send(ofp, lname, rname):
 
 def has_banned_word(lng, pid, sid, banned_words):
     submission_dir = '../submission'
-    sourceList = '../testdata/{}/source.lst'.format(pid)
+    sourceList = f'{resource["testdata"]}/{pid}/source.lst'
     check_script = 'scripts/banWordCheck.py'
 
     if lng != 0:
@@ -66,7 +68,7 @@ def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
     ifp = p.stdout
     ofp = p.stdin
     send(ofp, './const.py', 'const.py')
-    send(ofp, '../testdata/%d/judge' % pid, 'judge')
+    send(ofp, f'{resource["testdata"]}/{pid}/judge', 'judge')
     code_pack = CodePack(sid)
 
     # send submission codes from the user
@@ -77,7 +79,7 @@ def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
         send(ofp, source_file, 'source')
         code_pack.add_code(LazyLoadingCode(source_name, 'c', source_file))
     else:
-        with open('../testdata/%d/source.lst' % pid) as fp:
+        with open(f'{resource["testdata"]}/{pid}/source.lst') as fp:
             i = 0
             for fn in fp.readlines():
                 source_name = fn[:-1]
@@ -90,9 +92,10 @@ def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
 
     # send prepared codes from TA
     try:
-        with open('../testdata/%d/send.lst' % pid) as fp:
+        with open(f'{resource["testdata"]}/{pid}/send.lst') as fp:
             for fn in fp.readlines():
-                send(ofp, '../testdata/%d/%s' % (pid, fn[:-1]), fn[:-1])
+                source_code = fn[:-1]
+                send(ofp, f'{resource["testdata"]}/{pid}/{source_code}', source_code)
     except:
         pass
     ofp.write(('%10d' % -lng).encode())
@@ -101,7 +104,7 @@ def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
         n = int(ifp.read(2))
         if n <= 0: break
         fn = ifp.read(n).decode()
-        send(ofp, '../testdata/%d/%s' % (pid, fn), fn)
+        send(ofp, f'{resource["testdata"]}/{pid}/{fn}', fn)
     score = int(ifp.readline())
     result = int(ifp.readline())
     cpu = int(ifp.readline())
@@ -132,7 +135,7 @@ def get_judger_user(sid, pid, lng, butler_config):
 
     # check if the problem has specified a judging host
     try:
-        with open('../testdata/%d/server.py' % pid) as fp:
+        with open(f'{resource["testdata"]}/{pid}/server.py') as fp:
             info = eval(fp.read())
             (address, account) = (info[0][0], info[0][1])
     except:
@@ -142,6 +145,9 @@ def get_judger_user(sid, pid, lng, butler_config):
 
 def main():
     config = Config('_config.yml')
+
+    # setup global resource path
+    resource['testdata'] = config['RESOURCE']['testdata']
 
     # get butler config
     butler_config = config['BUTLER']
