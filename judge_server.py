@@ -3,31 +3,42 @@ import os
 import subprocess
 import sys
 import time
-import pymysql, traceback
+import traceback
 from typing import Dict
 
-# user defined module
-import const, pika
-from judge_common import CodePack, Config, DB, LazyLoadingCode, Logger
+import pika
+import pymysql
+from judge_common import DB, CodePack, Config, LazyLoadingCode, Logger
 
+# user defined module
+import const
 from judge_sender.style_check_handler import StyleCheckHandler
 
 resource: Dict[str, int] = {}
 
+
 def send(ofp, lname, rname):
-    assert os.system('cd /run/shm; ln -s \'%s\' \'%s\'; tar ch \'%s\' | gzip -1 > judge_server.tgz' % (os.path.realpath(lname), rname, rname)) == 0
-    with open('/run/shm/judge_server.tgz', 'rb') as fp: b = fp.read()
-    os.remove('/run/shm/%s' % rname)
-    os.remove('/run/shm/judge_server.tgz')
+    assert (
+        os.system(
+            "cd /run/shm; ln -s '%s' '%s'; tar ch '%s' | gzip -1 > judge_server.tgz"
+            % (os.path.realpath(lname), rname, rname)
+        )
+        == 0
+    )
+    with open("/run/shm/judge_server.tgz", "rb") as fp:
+        b = fp.read()
+    os.remove("/run/shm/%s" % rname)
+    os.remove("/run/shm/judge_server.tgz")
     b = binascii.hexlify(b)
-    ofp.write(('%10d' % len(b)).encode())
+    ofp.write(("%10d" % len(b)).encode())
     ofp.write(b)
     ofp.flush()
 
+
 def has_banned_word(lng, pid, sid, banned_words):
-    submission_dir = '../submission'
+    submission_dir = "../submission"
     sourceList = f'{resource["testdata"]}/{pid}/source.lst'
-    check_script = 'scripts/banWordCheck.py'
+    check_script = "scripts/banWordCheck.py"
 
     if lng != 0:
         file_num = 1
@@ -38,52 +49,58 @@ def has_banned_word(lng, pid, sid, banned_words):
                 file_num += 1
 
     for file_count in range(file_num):
-        filename = '../submission/{}-{}'.format(sid, file_count)
+        filename = "../submission/{}-{}".format(sid, file_count)
 
         for ban_word in banned_words:
-            if os.system('{} {} {}'.format(check_script, filename, ban_word)) != 0:
+            if os.system("{} {} {}".format(check_script, filename, ban_word)) != 0:
                 return True
 
-    Logger.info('Passed ban words check')
+    Logger.info("Passed ban words check")
 
     return False
 
+
 # for non AC result, we can give messages that shows in the result of the submission to user
 def leave_error_message(sid, message):
-    filename = '../submission/{}-z'.format(sid)
+    filename = "../submission/{}-z".format(sid)
     assert os.system('echo "{}" > {}'.format(message, filename)) == 0
 
+
 def get_filename(file_path):
-    filename = file_path.split('/')[-1]
-    filename = '.'.join(filename.split('.')[:-1])
+    filename = file_path.split("/")[-1]
+    filename = ".".join(filename.split(".")[:-1])
     return filename
 
+
 def get_language_extension(filename):
-    return filename.split('.')[-1]
+    return filename.split(".")[-1]
+
 
 def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
-    Logger.sid(sid, 'RUN sid %d pid %d lng %d' % (sid, pid, lng))
+    Logger.sid(sid, "RUN sid %d pid %d lng %d" % (sid, pid, lng))
 
-    p = subprocess.Popen(['ssh', serv, 'export PATH=$PATH:/home/butler; butler'], stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+    p = subprocess.Popen(
+        ["ssh", serv, "export PATH=$PATH:/home/butler; butler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE
+    )
     ifp = p.stdout
     ofp = p.stdin
-    send(ofp, './const.py', 'const.py')
-    send(ofp, f'{resource["testdata"]}/{pid}/judge', 'judge')
+    send(ofp, "./const.py", "const.py")
+    send(ofp, f'{resource["testdata"]}/{pid}/judge', "judge")
     code_pack = CodePack(sid)
 
     # send submission codes from the user
     if lng != 0:
-        source_name = 'main' # default name of source file. should change if we allow other language
-        source_file = '../submission/{}-0'.format(sid)
+        source_name = "main"  # default name of source file. should change if we allow other language
+        source_file = "../submission/{}-0".format(sid)
 
-        send(ofp, source_file, 'source')
-        code_pack.add_code(LazyLoadingCode(source_name, 'c', source_file))
+        send(ofp, source_file, "source")
+        code_pack.add_code(LazyLoadingCode(source_name, "c", source_file))
     else:
         with open(f'{resource["testdata"]}/{pid}/source.lst') as fp:
             i = 0
             for fn in fp.readlines():
                 source_name = fn[:-1]
-                source_file = '../submission/{}-{}'.format(sid, i)
+                source_file = "../submission/{}-{}".format(sid, i)
 
                 send(ofp, source_file, source_name)
                 code_pack.add_code(LazyLoadingCode(source_name, get_language_extension(source_name), source_file))
@@ -98,11 +115,12 @@ def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
                 send(ofp, f'{resource["testdata"]}/{pid}/{source_code}', source_code)
     except:
         pass
-    ofp.write(('%10d' % -lng).encode())
+    ofp.write(("%10d" % -lng).encode())
     ofp.flush()
     while True:
         n = int(ifp.read(2))
-        if n <= 0: break
+        if n <= 0:
+            break
         fn = ifp.read(n).decode()
         send(ofp, f'{resource["testdata"]}/{pid}/{fn}', fn)
     score = int(ifp.readline())
@@ -111,12 +129,17 @@ def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
     mem = int(ifp.readline())
     dtl = ifp.read()
     if dtl:
-        with open('../submission/%d-z' % sid, 'wb') as fp: fp.write(dtl)
+        with open("../submission/%d-z" % sid, "wb") as fp:
+            fp.write(dtl)
 
-    Logger.sid(sid, 'GET sid %d time %d space %d score %d' % (sid, cpu, mem, score))
+    Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, cpu, mem, score))
 
-    if result == const.AC and cpu < config['BANNED_WORDS']['cpu_time_threshold'] and has_banned_word(lng, pid, sid, config['BANNED_WORDS']['word_list']):
-        Logger.warn('found banned word, execute')
+    if (
+        result == const.AC
+        and cpu < config["BANNED_WORDS"]["cpu_time_threshold"]
+        and has_banned_word(lng, pid, sid, config["BANNED_WORDS"]["word_list"])
+    ):
+        Logger.warn("found banned word, execute")
 
         db.update_submission(-1, 4, cpu, mem, sid)
         return
@@ -127,11 +150,12 @@ def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
 
     db.update_submission(score, result, cpu, mem, sid)
 
+
 def get_judger_user(sid, pid, lng, butler_config):
 
     # default judging host
-    address = butler_config['host']
-    account = butler_config['user']
+    address = butler_config["host"]
+    account = butler_config["user"]
 
     # check if the problem has specified a judging host
     try:
@@ -141,16 +165,17 @@ def get_judger_user(sid, pid, lng, butler_config):
     except:
         pass
 
-    return '{}@{}'.format(account, address)
+    return "{}@{}".format(account, address)
+
 
 def main():
-    config = Config('_config.yml')
+    config = Config("_config.yml")
 
     # setup global resource path
-    resource['testdata'] = config['RESOURCE']['testdata']
+    resource["testdata"] = config["RESOURCE"]["testdata"]
 
     # get butler config
-    butler_config = config['BUTLER']
+    butler_config = config["BUTLER"]
 
     # get database
     db = DB(config)
@@ -159,7 +184,7 @@ def main():
     style_check_handler = StyleCheckHandler(config)
 
     # start polling
-    Logger.info('Load submitted code ...')
+    Logger.info("Load submitted code ...")
     while True:
         # get submission info
         row = db.get_next_submission_to_judge()
@@ -167,7 +192,7 @@ def main():
         style_check_handler.send_heartbeat()
 
         if row == None:
-            time.sleep(butler_config['period'])
+            time.sleep(butler_config["period"])
             continue
 
         [sid, pid, lng] = row
@@ -176,10 +201,11 @@ def main():
 
         judge_submission(sid, pid, lng, judger_user, db, config, style_check_handler)
 
-        Logger.info('Finish judging')
+        Logger.info("Finish judging")
 
-if __name__ == '__main__':
-    while(True):
+
+if __name__ == "__main__":
+    while True:
         try:
             main()
 

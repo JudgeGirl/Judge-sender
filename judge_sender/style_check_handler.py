@@ -1,12 +1,13 @@
 from judge_common import CodePackSerializer, Logger, WorkQueueSender
 
+
 class StyleCheckHandler:
     def __init__(self, config):
         self.config = config
-        self.enabled = config['STYLE_CHECK']['enabled']
+        self.enabled = config["STYLE_CHECK"]["enabled"]
 
         if self.enabled:
-            self.work_queue_sender = WorkQueueSender(config['RBMQ']['host'], 'style_check_task')
+            self.work_queue_sender = WorkQueueSender(config["RBMQ"]["host"], "style_check_task")
             self.serializer = CodePackSerializer()
 
         self.heartbeat_threshold = 5
@@ -32,11 +33,11 @@ class StyleCheckHandler:
                 Logger.error(e)
 
                 # renew WorkQueueSender
-                self.work_queue_sender = WorkQueueSender(self.config['RBMQ']['host'], 'style_check_task')
+                self.work_queue_sender = WorkQueueSender(self.config["RBMQ"]["host"], "style_check_task")
             else:
-                break;
+                break
         else:
-            raise Exception('exceed tetry limit')
+            raise Exception("exceed tetry limit")
 
         return
 
