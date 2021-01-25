@@ -1,3 +1,4 @@
 _config.yml
 *.swp
 __pycache__
+dependency/

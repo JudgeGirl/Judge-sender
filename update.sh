@@ -1,4 +1,4 @@
 #!/bin/bash
 
-cp ../Judge-common/dist/*.whl dependency
+cp /home/judgesister/Judge-common/dist/*.whl ./dependency/
 poetry add ./dependency/*.whl
