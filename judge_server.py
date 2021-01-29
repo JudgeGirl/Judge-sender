@@ -17,38 +17,45 @@ from judge_sender.style_check_handler import StyleCheckHandler
 resource: Dict[str, int] = {}
 
 
-def send(ofp, lname, rname):
+def send(output_pipe, source_name, result_name):
+    """
+
+    Args:
+        source_name: The file or directory which we deliver to the receiver in hex string.
+        result_name: The name which we rename the source file to.
+
+    """
     assert (
         os.system(
             "cd /run/shm; ln -s '%s' '%s'; tar ch '%s' | gzip -1 > judge_server.tgz"
-            % (os.path.realpath(lname), rname, rname)
+            % (os.path.realpath(source_name), result_name, result_name)
         )
         == 0
     )
-    with open("/run/shm/judge_server.tgz", "rb") as fp:
-        b = fp.read()
-    os.remove("/run/shm/%s" % rname)
+    with open("/run/shm/judge_server.tgz", "rb") as opened_file:
+        binary_data = opened_file.read()
+    os.remove("/run/shm/%s" % result_name)
     os.remove("/run/shm/judge_server.tgz")
-    b = binascii.hexlify(b)
-    ofp.write(("%10d" % len(b)).encode())
-    ofp.write(b)
-    ofp.flush()
+    hex_data = binascii.hexlify(binary_data)
+    output_pipe.write(("%10d" % len(hex_data)).encode())
+    output_pipe.write(hex_data)
+    output_pipe.flush()
 
 
-def has_banned_word(lng, pid, sid, banned_words):
+def has_banned_word(language, pid, sid, banned_words):
     submission_dir = "../submission"
     sourceList = f'{resource["testdata"]}/{pid}/source.lst'
     check_script = "scripts/banWordCheck.py"
 
-    if lng != 0:
-        file_num = 1
+    if language != 0:
+        file_amount = 1
     else:
-        file_num = 0
-        with open(sourceList) as fp:
-            for filename in fp.readlines():
-                file_num += 1
+        file_amount = 0
+        with open(sourceList) as opened_file:
+            for filename in opened_file.readlines():
+                file_amount += 1
 
-    for file_count in range(file_num):
+    for file_count in range(file_amount):
         filename = "../submission/{}-{}".format(sid, file_count)
 
         for ban_word in banned_words:
@@ -70,68 +77,68 @@ def get_language_extension(filename):
     return filename.split(".")[-1]
 
 
-def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
-    Logger.sid(sid, "RUN sid %d pid %d lng %d" % (sid, pid, lng))
+def judge_submission(sid, pid, language, reciver, db, config, style_check_handler):
+    Logger.sid(sid, "RUN sid %d pid %d language %d" % (sid, pid, language))
 
-    p = subprocess.Popen(
-        ["ssh", serv, "export PATH=$PATH:/home/butler; butler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE
+    popen_obj = subprocess.Popen(
+        ["ssh", reciver, "export PATH=$PATH:/home/butler; butler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE
     )
-    ifp = p.stdout
-    ofp = p.stdin
-    send(ofp, "./const.py", "const.py")
-    send(ofp, f'{resource["testdata"]}/{pid}/judge', "judge")
+    input_file_pipe = popen_obj.stdout
+    output_pipe = popen_obj.stdin
+    send(output_pipe, "./const.py", "const.py")
+    send(output_pipe, f'{resource["testdata"]}/{pid}/judge', "judge")
     code_pack = CodePack(sid)
 
     # send submission codes from the user
-    if lng != 0:
+    if language != 0:
         source_name = "main"  # default name of source file. should change if we allow other language
         source_file = "../submission/{}-0".format(sid)
 
-        send(ofp, source_file, "source")
+        send(output_pipe, source_file, "source")
         code_pack.add_code(LazyLoadingCode(source_name, "c", source_file))
     else:
-        with open(f'{resource["testdata"]}/{pid}/source.lst') as fp:
+        with open(f'{resource["testdata"]}/{pid}/source.lst') as opened_file:
             i = 0
-            for fn in fp.readlines():
-                source_name = fn[:-1]
+            for submission_file in opened_file.readlines():
+                source_name = submission_file[:-1]
                 source_file = "../submission/{}-{}".format(sid, i)
 
-                send(ofp, source_file, source_name)
+                send(output_pipe, source_file, source_name)
                 code_pack.add_code(LazyLoadingCode(source_name, get_language_extension(source_name), source_file))
 
                 i += 1
 
     # send prepared codes from TA
     try:
-        with open(f'{resource["testdata"]}/{pid}/send.lst') as fp:
-            for fn in fp.readlines():
-                source_code = fn[:-1]
-                send(ofp, f'{resource["testdata"]}/{pid}/{source_code}', source_code)
+        with open(f'{resource["testdata"]}/{pid}/send.lst') as opened_file:
+            for context_file in opened_file.readlines():
+                source_code = context_file[:-1]
+                send(output_pipe, f'{resource["testdata"]}/{pid}/{source_code}', source_code)
     except:
         pass
-    ofp.write(("%10d" % -lng).encode())
-    ofp.flush()
+    output_pipe.write(("%10d" % -language).encode())
+    output_pipe.flush()
     while True:
-        n = int(ifp.read(2))
+        n = int(input_file_pipe.read(2))
         if n <= 0:
             break
-        fn = ifp.read(n).decode()
-        send(ofp, f'{resource["testdata"]}/{pid}/{fn}', fn)
-    score = int(ifp.readline())
-    result = int(ifp.readline())
-    cpu = int(ifp.readline())
-    mem = int(ifp.readline())
-    dtl = ifp.read()
-    if dtl:
-        with open("../submission/%d-z" % sid, "wb") as fp:
-            fp.write(dtl)
+        additional_file = input_file_pipe.read(n).decode()
+        send(output_pipe, f'{resource["testdata"]}/{pid}/{additional_file}', additional_file)
+    score = int(input_file_pipe.readline())
+    result = int(input_file_pipe.readline())
+    cpu = int(input_file_pipe.readline())
+    mem = int(input_file_pipe.readline())
+    result_description = input_file_pipe.read()
+    if result_description:
+        with open("../submission/%d-z" % sid, "wb") as opened_file:
+            opened_file.write(result_description)
 
     Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, cpu, mem, score))
 
     if (
         result == const.AC
         and cpu < config["BANNED_WORDS"]["cpu_time_threshold"]
-        and has_banned_word(lng, pid, sid, config["BANNED_WORDS"]["word_list"])
+        and has_banned_word(language, pid, sid, config["BANNED_WORDS"]["word_list"])
     ):
         Logger.warn("found banned word, execute")
 
@@ -139,13 +146,13 @@ def judge_submission(sid, pid, lng, serv, db, config, style_check_handler):
         return
 
     # do style check if code passes
-    if result == const.AC and lng == 1:
+    if result == const.AC and language == 1:
         style_check_handler.handle(code_pack)
 
     db.update_submission(score, result, cpu, mem, sid)
 
 
-def get_judger_user(sid, pid, lng, butler_config):
+def get_judger_user(sid, pid, language, butler_config):
 
     # default judging host
     address = butler_config["host"]
@@ -153,8 +160,8 @@ def get_judger_user(sid, pid, lng, butler_config):
 
     # check if the problem has specified a judging host
     try:
-        with open(f'{resource["testdata"]}/{pid}/server.py') as fp:
-            info = eval(fp.read())
+        with open(f'{resource["testdata"]}/{pid}/server.py') as opened_file:
+            info = eval(opened_file.read())
             (address, account) = (info[0][0], info[0][1])
     except:
         pass
@@ -189,11 +196,11 @@ def main():
             time.sleep(butler_config["period"])
             continue
 
-        [sid, pid, lng] = row
+        [sid, pid, language] = row
         Logger.run("Start judging a submission")
-        judger_user = get_judger_user(sid, pid, lng, butler_config)
+        judger_user = get_judger_user(sid, pid, language, butler_config)
 
-        judge_submission(sid, pid, lng, judger_user, db, config, style_check_handler)
+        judge_submission(sid, pid, language, judger_user, db, config, style_check_handler)
 
         Logger.info("Finish judging")
 
@@ -203,14 +210,14 @@ if __name__ == "__main__":
         try:
             main()
 
-        except pymysql.err.OperationalError as e:
-            Logger.error(e)
+        except pymysql.err.OperationalError as err:
+            Logger.error(err)
             traceback.print_exc()
 
             time.sleep(5)
 
-        except Exception as e:
-            Logger.error(e)
-            raise e
+        except Exception as err:
+            Logger.error(err)
+            raise err
 
         time.sleep(5)
