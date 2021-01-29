@@ -66,12 +66,6 @@ def leave_error_message(sid, message):
     assert os.system('echo "{}" > {}'.format(message, filename)) == 0
 
 
-def get_filename(file_path):
-    filename = file_path.split("/")[-1]
-    filename = ".".join(filename.split(".")[:-1])
-    return filename
-
-
 def get_language_extension(filename):
     return filename.split(".")[-1]
 
