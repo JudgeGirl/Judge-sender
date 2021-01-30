@@ -8,16 +8,11 @@ from typing import TYPE_CHECKING, NoReturn, Optional
 from judge_sender.context import Result
 
 if TYPE_CHECKING:
-    from judge_common import Config
-
     from judge_sender.context import Judger
 
 
 class ReceiverAgent:
-    def __init__(self, config: Config, judger: Judger):
-        self.config = config
-        self.judger = judger
-
+    def __init__(self, judger: Judger):
         judger_user: str = f"{judger.user}@{judger.host}"
 
         popen_obj = subprocess.Popen(
@@ -74,10 +69,6 @@ class ReceiverAgent:
         self.output_pipe.write(("%10d" % len(hex_data)).encode())
         self.output_pipe.write(hex_data)
         self.output_pipe.flush()
-
-    def send_common_prepare_files(self, pid) -> NoReturn:
-        self.send_file("./const.py", "const.py")
-        self.send_file("{}/{}/judge".format(self.config["RESOURCE"]["testdata"], pid), "judge")
 
     def end_prepare(self, language) -> NoReturn:
         self.output_pipe.write(("%10d" % -language).encode())

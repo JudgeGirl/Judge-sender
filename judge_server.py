@@ -57,7 +57,8 @@ def judge_submission(sid, pid, language, db, config, style_check_handler, receiv
     Logger.sid(sid, "RUN sid %d pid %d language %d" % (sid, pid, language))
 
     # Send common judge scripts.
-    receiver_agent.send_common_prepare_files(pid)
+    receiver_agent.send_file("./const.py", "const.py")
+    receiver_agent.send_file("{}/{}/judge".format(self.config["RESOURCE"]["testdata"], pid), "judge")
 
     # Send submission codes from the user.
     code_pack = CodePack(sid)
@@ -180,7 +181,7 @@ def main():
         account, address = get_judger_user(sid, pid, language, butler_config)
         judger = Judger(address, account)
 
-        receiver_agent = ReceiverAgent(config, judger)
+        receiver_agent = ReceiverAgent(judger)
         judge_submission(sid, pid, language, db, config, style_check_handler, receiver_agent)
 
         Logger.info("Finish judging")
