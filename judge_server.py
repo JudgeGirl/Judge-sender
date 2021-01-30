@@ -12,36 +12,11 @@ from judge_common import DB, CodePack, Config, LazyLoadingCode, Logger
 
 # user defined module
 import const
-from judge_sender.context import Result
+from judge_sender.context import Judger, Result
+from judge_sender.receiver_agent import ReceiverAgent
 from judge_sender.style_check_handler import StyleCheckHandler
 
 resource: Dict[str, int] = {}
-
-
-def send(output_pipe, source_name, result_name):
-    """
-
-    Args:
-        source_name: The file or directory which we deliver to the receiver in hex string.
-        result_name: The name which we rename the source file to.
-
-    """
-
-    assert (
-        os.system(
-            "cd /run/shm; ln -s '%s' '%s'; tar ch '%s' | gzip -1 > judge_server.tgz"
-            % (os.path.realpath(source_name), result_name, result_name)
-        )
-        == 0
-    )
-    with open("/run/shm/judge_server.tgz", "rb") as opened_file:
-        binary_data = opened_file.read()
-    os.remove("/run/shm/%s" % result_name)
-    os.remove("/run/shm/judge_server.tgz")
-    hex_data = binascii.hexlify(binary_data)
-    output_pipe.write(("%10d" % len(hex_data)).encode())
-    output_pipe.write(hex_data)
-    output_pipe.flush()
 
 
 def has_banned_word(language, pid, sid, banned_words):
@@ -78,18 +53,11 @@ def get_language_extension(filename):
     return filename.split(".")[-1]
 
 
-def judge_submission(sid, pid, language, reciver, db, config, style_check_handler):
+def judge_submission(sid, pid, language, db, config, style_check_handler, receiver_agent):
     Logger.sid(sid, "RUN sid %d pid %d language %d" % (sid, pid, language))
 
-    popen_obj = subprocess.Popen(
-        ["ssh", reciver, "export PATH=$PATH:/home/butler; butler"], stdin=subprocess.PIPE, stdout=subprocess.PIPE
-    )
-    input_file_pipe = popen_obj.stdout
-    output_pipe = popen_obj.stdin
-
     # Send common judge scripts.
-    send(output_pipe, "./const.py", "const.py")
-    send(output_pipe, "{}/{}/judge".format(resource["testdata"], pid), "judge")
+    receiver_agent.send_common_prepare_files(pid)
 
     # Send submission codes from the user.
     code_pack = CodePack(sid)
@@ -97,7 +65,7 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
         source_name = "main"  # Default name of source file. It should change if we allow other language.
         source_file = "{}/{}-0".format(resource["submission"], sid)
 
-        send(output_pipe, source_file, "source")
+        receiver_agent.send_file(source_file, "source")
         code_pack.add_code(LazyLoadingCode(source_name, "c", source_file))
     else:
         with open("{}/{}/source.lst".format(resource["testdata"], pid)) as opened_file:
@@ -106,7 +74,7 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
                 source_name = submission_file[:-1]
                 source_file = "{}/{}-{}".format(resource["submission"], sid, i)
 
-                send(output_pipe, source_file, source_name)
+                receiver_agent.send_file(source_file, source_name)
                 code_pack.add_code(LazyLoadingCode(source_name, get_language_extension(source_name), source_file))
 
                 i += 1
@@ -116,31 +84,24 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
         with open("{}/{}/send.lst".format(resource["testdata"], pid)) as opened_file:
             for context_file in opened_file.readlines():
                 source_code = context_file[:-1]
-                send(output_pipe, "{}/{}/{}".format(resource["testdata"], pid, source_code), source_code)
+                receiver_agent.send_file("{}/{}/{}".format(resource["testdata"], pid, source_code), source_code)
     except:
         pass
 
     # Ends transport for prepared files.
-    output_pipe.write(("%10d" % -language).encode())
-    output_pipe.flush()
+    receiver_agent.end_prepare(language)
 
     # Waiting for requests of additional files.
     while True:
-        n = int(input_file_pipe.read(2))
         # Receiver send the code for the end of additional files.
-        if n <= 0:
+        additional_file = receiver_agent.get_next_additional_file()
+        if additional_file is None:
             break
 
-        additional_file = input_file_pipe.read(n).decode()
-        send(output_pipe, "{}/{}/{}".format(resource["testdata"], pid, additional_file), additional_file)
+        receiver_agent.send_file("{}/{}/{}".format(resource["testdata"], pid, additional_file), additional_file)
 
     # Read the result.
-    result = Result()
-    result.score = int(input_file_pipe.readline())
-    result.status_code = int(input_file_pipe.readline())
-    result.cpu = int(input_file_pipe.readline())
-    result.mem = int(input_file_pipe.readline())
-    result.description = input_file_pipe.read()
+    result = receiver_agent.read_result()
 
     Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, result.cpu, result.mem, result.score))
 
@@ -183,7 +144,7 @@ def get_judger_user(sid, pid, language, butler_config):
     except:
         pass
 
-    return "{}@{}".format(account, address)
+    return account, address
 
 
 def main():
@@ -216,9 +177,11 @@ def main():
 
         [sid, pid, language] = row
         Logger.run("Start judging a submission")
-        judger_user = get_judger_user(sid, pid, language, butler_config)
+        account, address = get_judger_user(sid, pid, language, butler_config)
+        judger = Judger(address, account)
 
-        judge_submission(sid, pid, language, judger_user, db, config, style_check_handler)
+        receiver_agent = ReceiverAgent(config, judger)
+        judge_submission(sid, pid, language, db, config, style_check_handler, receiver_agent)
 
         Logger.info("Finish judging")
 
