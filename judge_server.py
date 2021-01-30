@@ -76,6 +76,7 @@ def judge_submission(
     else:
         for file_entity in file_collector.get_submission_file_list():
             code_pack.add_code(LazyLoadingCode(file_entity[1], get_language_extension(file_entity[1]), file_entity[0]))
+    context.submission.code_pack = code_pack
 
     # Ends transport for prepared files.
     receiver_agent.end_prepare(language)
@@ -87,7 +88,8 @@ def judge_submission(
         if additional_file is None:
             break
 
-        receiver_agent.send_file("{}/{}/{}".format(resource["testdata"], pid, additional_file), additional_file)
+        file_path = file_collector.get_additional_file_path(file_name)
+        receiver_agent.send_file(file_path, file_name)
 
     # Read the result.
     result = receiver_agent.read_result()

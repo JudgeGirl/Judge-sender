@@ -66,3 +66,6 @@ class FileCollector:
 
     def get_full_send_list(self) -> list[list[str]]:
         return self.get_submission_file_list() + self.get_provided_file_list() + self.get_common_script_list()
+
+    def get_additional_file_path(self, file_name):
+        return "{}/{}/{}".format(self.testdata_dir, self.problem.pid, file_name)

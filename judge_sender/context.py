@@ -22,6 +22,7 @@ class Problem:
 class Submission:
     def __init__(self, sid):
         self.sid = sid
+        self.code_pack = None
 
 
 class Context:
