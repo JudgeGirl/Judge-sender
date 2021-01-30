@@ -1,18 +1,15 @@
-import binascii
 import os
-import subprocess
-import sys
 import time
 import traceback
 from typing import Dict, NoReturn
 
-import pika
 import pymysql
-from judge_common import DB, CodePack, Config, LazyLoadingCode, Logger
+from judge_common import CodePack, Config, LazyLoadingCode, Logger
 
 # user defined module
 import const
 from judge_sender.context import Context, Judger, Problem, Result, Submission
+from judge_sender.db_agent import DBAgent
 from judge_sender.file_collector import FileCollector
 from judge_sender.receiver_agent import ReceiverAgent
 from judge_sender.style_check_handler import StyleCheckHandler
@@ -55,7 +52,11 @@ def get_language_extension(filename):
 
 
 def judge_submission(
-    context: Context, db, style_check_handler, receiver_agent: ReceiverAgent, file_collector: FileCollector
+    context: Context,
+    db_agent: DBAgent,
+    style_check_handler,
+    receiver_agent: ReceiverAgent,
+    file_collector: FileCollector,
 ) -> NoReturn:
     sid = context.submission.sid
     pid = context.problem.pid
@@ -84,8 +85,8 @@ def judge_submission(
     # Waiting for requests of additional files.
     while True:
         # Receiver send the code for the end of additional files.
-        additional_file = receiver_agent.get_next_additional_file()
-        if additional_file is None:
+        file_name = receiver_agent.get_next_additional_file()
+        if file_name is None:
             break
 
         file_path = file_collector.get_additional_file_path(file_name)
@@ -110,8 +111,8 @@ def judge_submission(
     ):
         Logger.warn("found banned word, execute")
 
-        db.update_submission(-1, 4, result.cpu, result.mem, sid)
-        return
+        result.score = -1  # Tag it so it can be found from database later on.
+        result.status_code = const.RE
 
     # Postprocess: Generate style check report.
     # Only generate report for ac submissions.
@@ -119,7 +120,7 @@ def judge_submission(
         style_check_handler.handle(code_pack)
 
     # Update judge result to the database.
-    db.update_submission(result.score, result.status_code, result.cpu, result.mem, sid)
+    db_agent.update_submission(sid, result)
 
 
 def get_judger_user(sid, pid, language, butler_config):
@@ -150,7 +151,7 @@ def main():
     butler_config = config["BUTLER"]
 
     # get database
-    db = DB(config)
+    db_agent = DBAgent(config)
 
     # style check handler
     style_check_handler = StyleCheckHandler(config)
@@ -158,16 +159,13 @@ def main():
     # start polling
     Logger.info("Load submitted code ...")
     while True:
-        # get submission info
-        row = db.get_next_submission_to_judge()
-
         style_check_handler.send_heartbeat()
 
-        if row == None:
+        if db_agent.has_next_submission() == False:
             time.sleep(butler_config["period"])
             continue
 
-        [sid, pid, language] = row
+        sid, pid, language = db_agent.get_next_submission()
 
         problem = Problem(pid, language)
         submission = Submission(sid)
@@ -182,7 +180,7 @@ def main():
         file_collector = FileCollector(
             config["RESOURCE"]["testdata"], config["RESOURCE"]["submission"], problem, submission
         )
-        judge_submission(context, db, style_check_handler, receiver_agent, file_collector)
+        judge_submission(context, db_agent, style_check_handler, receiver_agent, file_collector)
 
         Logger.info("Finish judging")
 
