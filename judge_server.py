@@ -4,7 +4,7 @@ import subprocess
 import sys
 import time
 import traceback
-from typing import Dict
+from typing import Dict, NoReturn
 
 import pika
 import pymysql
@@ -12,18 +12,19 @@ from judge_common import DB, CodePack, Config, LazyLoadingCode, Logger
 
 # user defined module
 import const
-from judge_sender.context import Judger, Result
+from judge_sender.context import Context, Judger, Problem, Result, Submission
+from judge_sender.file_collector import FileCollector
 from judge_sender.receiver_agent import ReceiverAgent
 from judge_sender.style_check_handler import StyleCheckHandler
 
 resource: Dict[str, int] = {}
 
 
-def has_banned_word(language, pid, sid, banned_words):
-    sourceList = "{}/{}/source.lst".format(resource["testdata"], pid)
+def has_banned_word(context: Context, banned_words):
+    sourceList = "{}/{}/source.lst".format(resource["testdata"], context.problem.pid)
     check_script = "scripts/banWordCheck.py"
 
-    if language != 0:
+    if context.problem.language != 0:
         file_amount = 1
     else:
         file_amount = 0
@@ -32,7 +33,7 @@ def has_banned_word(language, pid, sid, banned_words):
                 file_amount += 1
 
     for file_count in range(file_amount):
-        filename = "{}/{}-{}".format(resource["submission"], sid, file_count)
+        filename = "{}/{}-{}".format(resource["submission"], context.submission.sid, file_count)
 
         for ban_word in banned_words:
             if os.system("{} {} {}".format(check_script, filename, ban_word)) != 0:
@@ -53,41 +54,28 @@ def get_language_extension(filename):
     return filename.split(".")[-1]
 
 
-def judge_submission(sid, pid, language, db, config, style_check_handler, receiver_agent):
+def judge_submission(
+    context: Context, db, style_check_handler, receiver_agent: ReceiverAgent, file_collector: FileCollector
+) -> NoReturn:
+    sid = context.submission.sid
+    pid = context.problem.pid
+    language = context.problem.language
+    config = context.config
+
     Logger.sid(sid, "RUN sid %d pid %d language %d" % (sid, pid, language))
 
-    # Send common judge scripts.
-    receiver_agent.send_file("./const.py", "const.py")
-    receiver_agent.send_file("{}/{}/judge".format(self.config["RESOURCE"]["testdata"], pid), "judge")
-
     # Send submission codes from the user.
+    for file_entity in file_collector.get_full_send_list():
+        receiver_agent.send_file(file_entity[0], file_entity[1])
+
+    # Build CodePack
     code_pack = CodePack(sid)
-    if language != 0:
-        source_name = "main"  # Default name of source file. It should change if we allow other language.
-        source_file = "{}/{}-0".format(resource["submission"], sid)
-
-        receiver_agent.send_file(source_file, "source")
-        code_pack.add_code(LazyLoadingCode(source_name, "c", source_file))
+    if language == 0:
+        file_entity = file_collector.get_submission_file_list()[0]
+        code_pack.add_code(LazyLoadingCode("main", "c", file_entity[0]))
     else:
-        with open("{}/{}/source.lst".format(resource["testdata"], pid)) as opened_file:
-            i = 0
-            for submission_file in opened_file.readlines():
-                source_name = submission_file[:-1]
-                source_file = "{}/{}-{}".format(resource["submission"], sid, i)
-
-                receiver_agent.send_file(source_file, source_name)
-                code_pack.add_code(LazyLoadingCode(source_name, get_language_extension(source_name), source_file))
-
-                i += 1
-
-    # Send prepared codes from TA
-    try:
-        with open("{}/{}/send.lst".format(resource["testdata"], pid)) as opened_file:
-            for context_file in opened_file.readlines():
-                source_code = context_file[:-1]
-                receiver_agent.send_file("{}/{}/{}".format(resource["testdata"], pid, source_code), source_code)
-    except:
-        pass
+        for file_entity in file_collector.get_submission_file_list():
+            code_pack.add_code(LazyLoadingCode(file_entity[1], get_language_extension(file_entity[1]), file_entity[0]))
 
     # Ends transport for prepared files.
     receiver_agent.end_prepare(language)
@@ -103,6 +91,7 @@ def judge_submission(sid, pid, language, db, config, style_check_handler, receiv
 
     # Read the result.
     result = receiver_agent.read_result()
+    context.result = result
 
     Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, result.cpu, result.mem, result.score))
 
@@ -115,7 +104,7 @@ def judge_submission(sid, pid, language, db, config, style_check_handler, receiv
     if (
         result.status_code == const.AC
         and result.cpu < config["BANNED_WORDS"]["cpu_time_threshold"]
-        and has_banned_word(language, pid, sid, config["BANNED_WORDS"]["word_list"])
+        and has_banned_word(context, config["BANNED_WORDS"]["word_list"])
     ):
         Logger.warn("found banned word, execute")
 
@@ -177,12 +166,21 @@ def main():
             continue
 
         [sid, pid, language] = row
+
+        problem = Problem(pid, language)
+        submission = Submission(sid)
+
         Logger.run("Start judging a submission")
         account, address = get_judger_user(sid, pid, language, butler_config)
         judger = Judger(address, account)
 
+        context = Context(problem, submission, judger, config)
+
         receiver_agent = ReceiverAgent(judger)
-        judge_submission(sid, pid, language, db, config, style_check_handler, receiver_agent)
+        file_collector = FileCollector(
+            config["RESOURCE"]["testdata"], config["RESOURCE"]["submission"], problem, submission
+        )
+        judge_submission(context, db, style_check_handler, receiver_agent, file_collector)
 
         Logger.info("Finish judging")
 

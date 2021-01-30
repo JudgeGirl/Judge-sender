@@ -22,3 +22,12 @@ class Problem:
 class Submission:
     def __init__(self, sid):
         self.sid = sid
+
+
+class Context:
+    def __init__(self, problem: Problem, submission: Submission, judger: Judger, config):
+        self.problem = problem
+        self.submission = submission
+        self.judger = judger
+        self.result = None
+        self.config = config
