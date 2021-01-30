@@ -118,12 +118,17 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
         pass
     output_pipe.write(("%10d" % -language).encode())
     output_pipe.flush()
+
+    # Waiting for requests of additional files.
     while True:
         n = int(input_file_pipe.read(2))
+        # Receiver send the code for the end of additional files.
         if n <= 0:
             break
+
         additional_file = input_file_pipe.read(n).decode()
         send(output_pipe, f'{resource["testdata"]}/{pid}/{additional_file}', additional_file)
+
     score = int(input_file_pipe.readline())
     result = int(input_file_pipe.readline())
     cpu = int(input_file_pipe.readline())
