@@ -11,3 +11,14 @@ class Judger:
     def __init__(self, host, user):
         self.host = host
         self.user = user
+
+
+class Problem:
+    def __init__(self, pid, language):
+        self.pid = pid
+        self.language = language
+
+
+class Submission:
+    def __init__(self, sid):
+        self.sid = sid
