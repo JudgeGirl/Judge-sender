@@ -43,7 +43,6 @@ def send(output_pipe, source_name, result_name):
 
 
 def has_banned_word(language, pid, sid, banned_words):
-    submission_dir = "../submission"
     sourceList = f'{resource["testdata"]}/{pid}/source.lst'
     check_script = "scripts/banWordCheck.py"
 
@@ -56,7 +55,7 @@ def has_banned_word(language, pid, sid, banned_words):
                 file_amount += 1
 
     for file_count in range(file_amount):
-        filename = "../submission/{}-{}".format(sid, file_count)
+        filename = "{}/{}-{}".format(resource["submission"], sid, file_count)
 
         for ban_word in banned_words:
             if os.system("{} {} {}".format(check_script, filename, ban_word)) != 0:
@@ -69,7 +68,7 @@ def has_banned_word(language, pid, sid, banned_words):
 
 # for non AC result, we can give messages that shows in the result of the submission to user
 def leave_error_message(sid, message):
-    filename = "../submission/{}-z".format(sid)
+    filename = "{}/{}-z".format(resource["submission"], sid)
     assert os.system('echo "{}" > {}'.format(message, filename)) == 0
 
 
@@ -94,7 +93,7 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
     code_pack = CodePack(sid)
     if language != 0:
         source_name = "main"  # Default name of source file. It should change if we allow other language.
-        source_file = "../submission/{}-0".format(sid)
+        source_file = "{}/{}-0".format(resource["submission"], sid)
 
         send(output_pipe, source_file, "source")
         code_pack.add_code(LazyLoadingCode(source_name, "c", source_file))
@@ -103,7 +102,7 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
             i = 0
             for submission_file in opened_file.readlines():
                 source_name = submission_file[:-1]
-                source_file = "../submission/{}-{}".format(sid, i)
+                source_file = "{}/{}-{}".format(resource["submission"], sid, i)
 
                 send(output_pipe, source_file, source_name)
                 code_pack.add_code(LazyLoadingCode(source_name, get_language_extension(source_name), source_file))
@@ -144,7 +143,7 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
 
     # Write result description to file.
     if result_description:
-        with open("../submission/%d-z" % sid, "wb") as opened_file:
+        with open(f"{resource['submission']}/{sid}-z", "wb") as opened_file:
             opened_file.write(result_description)
 
     # Postprocess: Check for banned words.
@@ -189,6 +188,7 @@ def main():
 
     # setup global resource path
     resource["testdata"] = config["RESOURCE"]["testdata"]
+    resource["submission"] = config["RESOURCE"]["submission"]
 
     # get butler config
     butler_config = config["BUTLER"]
