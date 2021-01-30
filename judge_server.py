@@ -12,6 +12,7 @@ from judge_common import DB, CodePack, Config, LazyLoadingCode, Logger
 
 # user defined module
 import const
+from judge_sender.context import Result
 from judge_sender.style_check_handler import StyleCheckHandler
 
 resource: Dict[str, int] = {}
@@ -25,6 +26,7 @@ def send(output_pipe, source_name, result_name):
         result_name: The name which we rename the source file to.
 
     """
+
     assert (
         os.system(
             "cd /run/shm; ln -s '%s' '%s'; tar ch '%s' | gzip -1 > judge_server.tgz"
@@ -43,7 +45,7 @@ def send(output_pipe, source_name, result_name):
 
 
 def has_banned_word(language, pid, sid, banned_words):
-    sourceList = f'{resource["testdata"]}/{pid}/source.lst'
+    sourceList = "{}/{}/source.lst".format(resource["testdata"], pid)
     check_script = "scripts/banWordCheck.py"
 
     if language != 0:
@@ -87,7 +89,7 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
 
     # Send common judge scripts.
     send(output_pipe, "./const.py", "const.py")
-    send(output_pipe, f'{resource["testdata"]}/{pid}/judge', "judge")
+    send(output_pipe, "{}/{}/judge".format(resource["testdata"], pid), "judge")
 
     # Send submission codes from the user.
     code_pack = CodePack(sid)
@@ -98,7 +100,7 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
         send(output_pipe, source_file, "source")
         code_pack.add_code(LazyLoadingCode(source_name, "c", source_file))
     else:
-        with open(f'{resource["testdata"]}/{pid}/source.lst') as opened_file:
+        with open("{}/{}/source.lst".format(resource["testdata"], pid)) as opened_file:
             i = 0
             for submission_file in opened_file.readlines():
                 source_name = submission_file[:-1]
@@ -111,10 +113,10 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
 
     # Send prepared codes from TA
     try:
-        with open(f'{resource["testdata"]}/{pid}/send.lst') as opened_file:
+        with open("{}/{}/send.lst".format(resource["testdata"], pid)) as opened_file:
             for context_file in opened_file.readlines():
                 source_code = context_file[:-1]
-                send(output_pipe, f'{resource["testdata"]}/{pid}/{source_code}', source_code)
+                send(output_pipe, "{}/{}/{}".format(resource["testdata"], pid, source_code), source_code)
     except:
         pass
 
@@ -130,40 +132,41 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
             break
 
         additional_file = input_file_pipe.read(n).decode()
-        send(output_pipe, f'{resource["testdata"]}/{pid}/{additional_file}', additional_file)
+        send(output_pipe, "{}/{}/{}".format(resource["testdata"], pid, additional_file), additional_file)
 
     # Read the result.
-    score = int(input_file_pipe.readline())
-    result = int(input_file_pipe.readline())
-    cpu = int(input_file_pipe.readline())
-    mem = int(input_file_pipe.readline())
-    result_description = input_file_pipe.read()
+    result = Result()
+    result.score = int(input_file_pipe.readline())
+    result.status_code = int(input_file_pipe.readline())
+    result.cpu = int(input_file_pipe.readline())
+    result.mem = int(input_file_pipe.readline())
+    result.description = input_file_pipe.read()
 
-    Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, cpu, mem, score))
+    Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, result.cpu, result.mem, result.score))
 
     # Write result description to file.
-    if result_description:
-        with open(f"{resource['submission']}/{sid}-z", "wb") as opened_file:
-            opened_file.write(result_description)
+    if result.description:
+        with open("{}/{}-z".format(resource["submission"], sid), "wb") as opened_file:
+            opened_file.write(result.description)
 
     # Postprocess: Check for banned words.
     if (
-        result == const.AC
-        and cpu < config["BANNED_WORDS"]["cpu_time_threshold"]
+        result.status_code == const.AC
+        and result.cpu < config["BANNED_WORDS"]["cpu_time_threshold"]
         and has_banned_word(language, pid, sid, config["BANNED_WORDS"]["word_list"])
     ):
         Logger.warn("found banned word, execute")
 
-        db.update_submission(-1, 4, cpu, mem, sid)
+        db.update_submission(-1, 4, result.cpu, result.mem, sid)
         return
 
     # Postprocess: Generate style check report.
     # Only generate report for ac submissions.
-    if result == const.AC and language == 1:
+    if result.status_code == const.AC and language == 1:
         style_check_handler.handle(code_pack)
 
     # Update judge result to the database.
-    db.update_submission(score, result, cpu, mem, sid)
+    db.update_submission(result.score, result.status_code, result.cpu, result.mem, sid)
 
 
 def get_judger_user(sid, pid, language, butler_config):
@@ -174,7 +177,7 @@ def get_judger_user(sid, pid, language, butler_config):
 
     # check if the problem has specified a judging host
     try:
-        with open(f'{resource["testdata"]}/{pid}/server.py') as opened_file:
+        with open("{}/{}/server.py".format(resource["testdata"], pid)) as opened_file:
             info = eval(opened_file.read())
             (address, account) = (info[0][0], info[0][1])
     except:
