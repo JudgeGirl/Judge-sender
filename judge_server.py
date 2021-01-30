@@ -85,13 +85,15 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
     )
     input_file_pipe = popen_obj.stdout
     output_pipe = popen_obj.stdin
+
+    # Send common judge scripts.
     send(output_pipe, "./const.py", "const.py")
     send(output_pipe, f'{resource["testdata"]}/{pid}/judge', "judge")
-    code_pack = CodePack(sid)
 
-    # send submission codes from the user
+    # Send submission codes from the user.
+    code_pack = CodePack(sid)
     if language != 0:
-        source_name = "main"  # default name of source file. should change if we allow other language
+        source_name = "main"  # Default name of source file. It should change if we allow other language.
         source_file = "../submission/{}-0".format(sid)
 
         send(output_pipe, source_file, "source")
@@ -108,7 +110,7 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
 
                 i += 1
 
-    # send prepared codes from TA
+    # Send prepared codes from TA
     try:
         with open(f'{resource["testdata"]}/{pid}/send.lst') as opened_file:
             for context_file in opened_file.readlines():
@@ -116,6 +118,8 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
                 send(output_pipe, f'{resource["testdata"]}/{pid}/{source_code}', source_code)
     except:
         pass
+
+    # Ends transport for prepared files.
     output_pipe.write(("%10d" % -language).encode())
     output_pipe.flush()
 
@@ -129,17 +133,21 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
         additional_file = input_file_pipe.read(n).decode()
         send(output_pipe, f'{resource["testdata"]}/{pid}/{additional_file}', additional_file)
 
+    # Read the result.
     score = int(input_file_pipe.readline())
     result = int(input_file_pipe.readline())
     cpu = int(input_file_pipe.readline())
     mem = int(input_file_pipe.readline())
     result_description = input_file_pipe.read()
+
+    Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, cpu, mem, score))
+
+    # Write result description to file.
     if result_description:
         with open("../submission/%d-z" % sid, "wb") as opened_file:
             opened_file.write(result_description)
 
-    Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, cpu, mem, score))
-
+    # Postprocess: Check for banned words.
     if (
         result == const.AC
         and cpu < config["BANNED_WORDS"]["cpu_time_threshold"]
@@ -150,10 +158,12 @@ def judge_submission(sid, pid, language, reciver, db, config, style_check_handle
         db.update_submission(-1, 4, cpu, mem, sid)
         return
 
-    # do style check if code passes
+    # Postprocess: Generate style check report.
+    # Only generate report for ac submissions.
     if result == const.AC and language == 1:
         style_check_handler.handle(code_pack)
 
+    # Update judge result to the database.
     db.update_submission(score, result, cpu, mem, sid)
 
 
