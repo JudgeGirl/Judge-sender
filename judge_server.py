@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import os
 import time
 import traceback
-from typing import Dict, NoReturn
+from typing import TYPE_CHECKING, Dict, NoReturn
 
 import pymysql
 from judge_common import CodePack, Config, LazyLoadingCode, Logger
@@ -17,9 +19,13 @@ from judge_sender.context import (
     Submission,
 )
 from judge_sender.db_agent import DBAgent
-from judge_sender.file_collector import FileCollector
+from judge_sender.file_collector import FileCollectorFactory
 from judge_sender.receiver_agent import ReceiverAgent
 from judge_sender.style_check_handler import StyleCheckHandler
+
+if TYPE_CHECKING:
+    from judge_sender.context import Context
+    from judge_sender.file_collector import FileCollector
 
 resource: Dict[str, int] = {}
 
@@ -150,6 +156,7 @@ def get_judger_user(sid, pid, language, butler_config):
 def main():
     config = Config("_config.yml")
     context_factory = ContextFactory()
+    file_collector_facotry = FileCollectorFactory(config["RESOURCE"]["testdata"], config["RESOURCE"]["submission"])
 
     # setup global resource path
     resource["testdata"] = config["RESOURCE"]["testdata"]
@@ -180,14 +187,13 @@ def main():
 
         Logger.run("Start judging a submission")
         account, address = get_judger_user(sid, pid, language, butler_config)
+
         judger = Judger(address, account)
+        receiver_agent = ReceiverAgent(judger)
 
         context = context_factory.create_context(problem, submission, judger)
+        file_collector = file_collector_facotry.create_file_collector(problem, submission)
 
-        receiver_agent = ReceiverAgent(judger)
-        file_collector = FileCollector(
-            config["RESOURCE"]["testdata"], config["RESOURCE"]["submission"], problem, submission
-        )
         judge_submission(context, db_agent, style_check_handler, receiver_agent, file_collector)
 
         Logger.info("Finish judging")

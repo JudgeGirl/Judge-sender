@@ -69,3 +69,12 @@ class FileCollector:
 
     def get_additional_file_path(self, file_name):
         return "{}/{}/{}".format(self.testdata_dir, self.problem.pid, file_name)
+
+
+class FileCollectorFactory:
+    def __init__(self, testdata_dir: str, submission_dir: str):
+        self.testdata_dir = testdata_dir
+        self.submission_dir = submission_dir
+
+    def create_file_collector(self, problem: Problem, submission: Submission) -> FileCollector:
+        return FileCollector(self.testdata_dir, self.submission_dir, problem, submission)
