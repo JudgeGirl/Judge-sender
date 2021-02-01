@@ -8,7 +8,14 @@ from judge_common import CodePack, Config, LazyLoadingCode, Logger
 
 # user defined module
 import const
-from judge_sender.context import Context, Judger, Problem, Result, Submission
+from judge_sender.context import (
+    Context,
+    ContextFactory,
+    Judger,
+    Problem,
+    Result,
+    Submission,
+)
 from judge_sender.db_agent import DBAgent
 from judge_sender.file_collector import FileCollector
 from judge_sender.receiver_agent import ReceiverAgent
@@ -93,7 +100,7 @@ def judge_submission(
         receiver_agent.send_file(file_path, file_name)
 
     # Read the result.
-    result = receiver_agent.read_result()
+    result = receiver_agent.read_result(context)
     context.result = result
 
     Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, result.cpu, result.mem, result.score))
@@ -142,6 +149,7 @@ def get_judger_user(sid, pid, language, butler_config):
 
 def main():
     config = Config("_config.yml")
+    context_factory = ContextFactory()
 
     # setup global resource path
     resource["testdata"] = config["RESOURCE"]["testdata"]
@@ -174,7 +182,7 @@ def main():
         account, address = get_judger_user(sid, pid, language, butler_config)
         judger = Judger(address, account)
 
-        context = Context(problem, submission, judger, config)
+        context = context_factory.create_context(problem, submission, judger)
 
         receiver_agent = ReceiverAgent(judger)
         file_collector = FileCollector(

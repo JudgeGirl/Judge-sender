@@ -1,3 +1,8 @@
+from judge_common import Config
+
+import const
+
+
 class Result:
     def __init__(self):
         self.status_code = None
@@ -26,9 +31,18 @@ class Submission:
 
 
 class Context:
-    def __init__(self, problem: Problem, submission: Submission, judger: Judger, config):
+    def __init__(self, problem: Problem, submission: Submission, judger: Judger, config: Config, const):
         self.problem = problem
         self.submission = submission
         self.judger = judger
-        self.result = None
+        self.result = Result()
         self.config = config
+        self.const = const
+
+
+class ContextFactory:
+    def __init__(self):
+        self.config = Config("_config.yml")
+
+    def create_context(self, problem: Problem, submission: Submission, judger: Judger) -> Context:
+        return Context(problem, submission, judger, self.config, const)

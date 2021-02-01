@@ -5,7 +5,7 @@ import os
 import subprocess
 from typing import TYPE_CHECKING, NoReturn, Optional
 
-from judge_sender.context import Result
+from judge_sender.context import Context, Result
 
 if TYPE_CHECKING:
     from judge_sender.context import Judger
@@ -23,8 +23,8 @@ class ReceiverAgent:
         self.input_pipe = popen_obj.stdout
         self.output_pipe = popen_obj.stdin
 
-    def read_result(self) -> Result:
-        result: Result = Result()
+    def read_result(self, context: Context) -> Result:
+        result: Result = context.result
 
         result.score = int(self._read_line())
         result.status_code = int(self._read_line())
