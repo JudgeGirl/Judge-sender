@@ -31,6 +31,9 @@ class FileCollector:
             with open("{}/{}/source.lst".format(self.testdata_dir, self.problem.pid)) as list_file:
                 i = 0
                 for submission_file in list_file.readlines():
+                    if submission_file.strip() == "":
+                        continue
+
                     source_file = "{}/{}-{}".format(self.submission_dir, self.submission.sid, i)
                     source_name = submission_file[:-1]
                     submission_file_list.append([source_file, source_name])
@@ -48,6 +51,9 @@ class FileCollector:
         try:
             with open("{}/{}/send.lst".format(self.testdata_dir, self.problem.pid)) as list_file:
                 for provided_file in list_file.readlines():
+                    if provided_file.strip() == "":
+                        continue
+
                     source_name = provided_file[:-1]
                     source_file = "{}/{}/{}".format(self.testdata_dir, self.problem.pid, source_name)
                     provided_file_list.append([source_file, source_name])
