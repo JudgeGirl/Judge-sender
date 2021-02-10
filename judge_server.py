@@ -84,7 +84,7 @@ def judge_submission(
 
     # Build CodePack
     code_pack = CodePack(sid)
-    if language == 0:
+    if language == 1:
         file_entity = file_collector.get_submission_file_list()[0]
         code_pack.add_code(LazyLoadingCode("main", "c", file_entity[0]))
     else:
