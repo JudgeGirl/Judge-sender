@@ -6,7 +6,7 @@ import traceback
 from typing import TYPE_CHECKING, Dict, NoReturn
 
 import pymysql
-from judge_common import DB, CodePack, Config, LazyLoadingCode, Logger
+from judge_common import DB, CodePack, Config, LazyLoadingCode, Logger, DBLostConnection
 
 # user defined module
 import const
@@ -208,7 +208,7 @@ if __name__ == "__main__":
             Logger.error(err)
             traceback.print_exc()
 
-        except DB.DBLostConnection as err:
+        except DBLostConnection as err:
             Logger.error(err)
             traceback.print_exc()
 
