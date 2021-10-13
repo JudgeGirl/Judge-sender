@@ -96,7 +96,7 @@ python-versions = "*"
 
 [[package]]
 name = "judge-common"
-version = "0.1.7"
+version = "0.1.8"
 description = ""
 category = "main"
 optional = false
@@ -112,7 +112,7 @@ PyYAML = ">=5.3.1,<6.0.0"
 
 [package.source]
 type = "file"
-url = "dependency/judge_common-0.1.7-py3-none-any.whl"
+url = "dependency/judge_common-0.1.8-py3-none-any.whl"
 
 [[package]]
 name = "nodeenv"
@@ -286,7 +286,7 @@ testing = ["pytest (>=3.5,<3.7.3 || >3.7.3)", "pytest-checkdocs (>=1.2.3)", "pyt
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "c8fd2880b002d8749640a5fb439ef4a693a2e57f4f7064bf3f732e8dc8952422"
+content-hash = "6fccf723c1ccc14f9a93e91d6fe64b3da30937d08e1a44f6a927c447805af48d"
 
 [metadata.files]
 appdirs = [
@@ -330,7 +330,7 @@ iniconfig = [
     {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
 ]
 judge-common = [
-    {file = "judge_common-0.1.7-py3-none-any.whl", hash = "sha256:1ce83149807d8eafb1e4471538bd1660ad3095b5aa550a947439ce327d89d1fc"},
+    {file = "judge_common-0.1.8-py3-none-any.whl", hash = "sha256:9acedbb7388276d569aadc0e7605881352e780f584b8f7881657c1e131d29cf6"},
 ]
 nodeenv = [
     {file = "nodeenv-1.5.0-py2.py3-none-any.whl", hash = "sha256:5304d424c529c997bc888453aeaa6362d242b6b4631e90f3d4bf1b290f1c84a9"},
