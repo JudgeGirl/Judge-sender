@@ -28,7 +28,8 @@ if TYPE_CHECKING:
     from judge_sender.file_collector import FileCollector
 
 resource: Dict[str, int] = {}
-
+status_to_style_check = [const.CE, const.OLE, const.MLE, const.RE, const.TLE
+    , const.WA, const.AC]
 
 def has_banned_word(context: Context, banned_words):
     sourceList = "{}/{}/source.lst".format(resource["testdata"], context.problem.pid)
@@ -129,7 +130,7 @@ def judge_submission(
 
     # Postprocess: Generate style check report.
     # Only generate report for ac submissions.
-    if result.status_code == const.AC and language == 1:
+    if result.status_code in status_to_style_check and language == 1:
         style_check_handler.handle(code_pack)
 
     # Update judge result to the database.
