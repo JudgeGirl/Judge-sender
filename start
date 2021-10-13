@@ -1,2 +1,2 @@
 #!/bin/sh
-poetry run python -B judge_server.py
+poetry run python -B -u judge_server.py
