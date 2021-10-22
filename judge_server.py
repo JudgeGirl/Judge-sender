@@ -129,7 +129,6 @@ def judge_submission(
         result.status_code = const.RE
 
     # Postprocess: Generate style check report.
-    # Only generate report for ac submissions.
     if result.status_code in status_to_style_check and language == 1:
         style_check_handler.handle(code_pack)
 

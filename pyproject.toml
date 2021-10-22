@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "judge-sender"
-version = "2.0.0"
+version = "2.0.1"
 description = ""
 authors = ["Daniel1147 <r08922169@ntu.edu.tw>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-judge-common = {path = "dependency/judge_common-0.1.8-py3-none-any.whl"}
+judge-common = {path = "dependency/judge_common-0.1.12-py3-none-any.whl"}
 
 [tool.poetry.dev-dependencies]
 
