@@ -330,7 +330,7 @@ iniconfig = [
     {file = "iniconfig-1.1.1.tar.gz", hash = "sha256:bc3af051d7d14b2ee5ef9969666def0cd1a000e121eaea580d4a313df4b37f32"},
 ]
 judge-common = [
-    {file = "judge_common-0.1.12-py3-none-any.whl", hash = "sha256:2241d025b642e6285f6af5952ff11ea70cb44e1b2cbf9ccdb5d345e1f92005b1"},
+    {file = "judge_common-0.1.12-py3-none-any.whl", hash = "sha256:8211b03a2253e66fd397c406d6fe7f742e5a4f8f4d0498dd8b9bd5e2673f2ca1"},
 ]
 nodeenv = [
     {file = "nodeenv-1.5.0-py2.py3-none-any.whl", hash = "sha256:5304d424c529c997bc888453aeaa6362d242b6b4631e90f3d4bf1b290f1c84a9"},

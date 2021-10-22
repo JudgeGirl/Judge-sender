@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NoReturn, Optional, Tuple
+from typing import TYPE_CHECKING, NoReturn, Optional, Tuple, Dict
 
 from judge_common import DB, Config
 
@@ -24,10 +24,10 @@ class DBAgent:
         return True
 
     def get_next_submission(self) -> Optional[Tuple[str, str, int]]:
-        if self.next_submission is None:
-            return None
-
         return self.next_submission
+
+    def get_submission(self, sid: str) -> Optional[Dict]:
+        return self.db.get_submission(sid)
 
     def update_submission(self, sid: str, result: Result) -> NoReturn:
         self.db.update_submission(result.score, result.status_code, result.cpu, result.mem, sid)

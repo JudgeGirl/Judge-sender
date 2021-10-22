@@ -2,12 +2,6 @@ default_language_version:
     python: python3
 
 repos:
--   repo: https://github.com/timothycrosley/isort
-    rev: 5.5.2
-    hooks:
-    -   id: isort
-        name: isort
-        args: ["--profile", "black"]
 -   repo: https://github.com/psf/black.git
     rev: 19.10b0
     hooks:

@@ -6,7 +6,7 @@ import traceback
 from typing import TYPE_CHECKING, Dict, NoReturn
 
 import pymysql
-from judge_common import DB, CodePack, Config, LazyLoadingCode, Logger, DBLostConnection
+from judge_common import CodePack, Config, DBLostConnection, LazyLoadingCode, Logger
 
 # user defined module
 import const
@@ -28,8 +28,8 @@ if TYPE_CHECKING:
     from judge_sender.file_collector import FileCollector
 
 resource: Dict[str, int] = {}
-status_to_style_check = [const.CE, const.OLE, const.MLE, const.RE, const.TLE
-    , const.WA, const.AC]
+status_to_style_check = [const.CE, const.OLE, const.MLE, const.RE, const.TLE, const.WA, const.AC]
+
 
 def has_banned_word(context: Context, banned_words):
     sourceList = "{}/{}/source.lst".format(resource["testdata"], context.problem.pid)
