@@ -36,10 +36,6 @@ class StyleCheckHandler:
         if language == 1:
             Logger.info("send main.c for style check")
 
-        if language != 1 and len(code_pack.compile_args) == 0:
-            Logger.info("multiple source code files without compile arguments")
-            return
-
         for retry in range(5):
             try:
                 code_pack_str = self.serializer.serialize(code_pack)
