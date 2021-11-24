@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import const
+from .const import const
 from judge_common import CodePackSerializer, Logger, WorkQueueSender
 
 

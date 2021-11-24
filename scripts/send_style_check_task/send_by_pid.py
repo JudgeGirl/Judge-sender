@@ -1,8 +1,7 @@
 import sys
 import traceback
 from judge_common import DB, Logger, Config
-
-from helper import send_tasks
+from judge_sender import send_tasks
 
 
 def print_usage():

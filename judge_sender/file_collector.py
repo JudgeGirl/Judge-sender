@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List
 import json
 from pathlib import Path
-from judge_common import Logger
+from judge_common import Logger, CodePack, LazyLoadingCode
 
 if TYPE_CHECKING:
     from judge_sender.context import Problem, Submission
@@ -96,6 +96,36 @@ class FileCollector:
             compile_args = []
 
         return compile_args
+
+    def build_code_pack(self) -> CodePack:
+        sid = self.submission.sid
+        language = self.problem.language
+        compile_args = self.get_compile_args()
+
+        code_pack = CodePack(sid, compile_args)
+        if language == 1:
+            file_entity = self.get_submission_file_list()[0]
+            code_pack.add_code(LazyLoadingCode("main", "c", file_entity[0], from_user=True))
+        else:
+            for file_entity in self.get_submission_file_list():
+                full_path = file_entity[0]
+                file_path = Path(file_entity[1])
+                filename = file_path.stem
+                extension = file_path.suffix[1:]
+
+                code = LazyLoadingCode(filename, extension, full_path, from_user=True)
+                code_pack.add_code(code)
+
+            for file_entity in self.get_provided_file_list():
+                full_path = file_entity[0]
+                file_path = Path(file_entity[1])
+                filename = file_path.stem
+                extension = file_path.suffix[1:]
+
+                code = LazyLoadingCode(filename, extension, full_path, from_user=False)
+                code_pack.add_code(code)
+
+        return code_pack
 
 
 class FileCollectorFactory:

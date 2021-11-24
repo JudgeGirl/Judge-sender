@@ -1,4 +1,4 @@
-from helper import send_tasks
+from judge_sender import send_tasks
 
 
 sid_list = ["397709", "1111111111"]

@@ -10,7 +10,6 @@ import pymysql
 from judge_common import CodePack, Config, DBLostConnection, LazyLoadingCode, Logger
 
 # user defined module
-import const
 from judge_sender.context import (
     Context,
     ContextFactory,
@@ -23,6 +22,7 @@ from judge_sender.db_agent import DBAgent
 from judge_sender.file_collector import FileCollectorFactory
 from judge_sender.receiver_agent import ReceiverAgent
 from judge_sender.style_check_handler import StyleCheckHandler
+from judge_sender import const
 
 
 if TYPE_CHECKING:
@@ -80,33 +80,6 @@ def judge_submission(
     for file_entity in file_collector.get_full_send_list():
         receiver_agent.send_file(file_entity[0], file_entity[1])
 
-    # Build CodePack
-    compile_args = file_collector.get_compile_args()
-    code_pack = CodePack(sid, compile_args)
-    if language == 1:
-        file_entity = file_collector.get_submission_file_list()[0]
-        code_pack.add_code(LazyLoadingCode("main", "c", file_entity[0], from_user=True))
-    else:
-        for file_entity in file_collector.get_submission_file_list():
-            full_path = file_entity[0]
-            file_path = Path(file_entity[1])
-            filename = file_path.stem
-            extension = file_path.suffix[1:]
-
-            code = LazyLoadingCode(filename, extension, full_path, from_user=True)
-            code_pack.add_code(code)
-
-        for file_entity in file_collector.get_provided_file_list():
-            full_path = file_entity[0]
-            file_path = Path(file_entity[1])
-            filename = file_path.stem
-            extension = file_path.suffix[1:]
-
-            code = LazyLoadingCode(filename, extension, full_path, from_user=False)
-            code_pack.add_code(code)
-
-    context.submission.code_pack = code_pack
-
     # Ends transport for prepared files.
     receiver_agent.end_prepare(language)
 
@@ -146,7 +119,9 @@ def judge_submission(
     db_agent.update_submission(sid, result)
 
     # Postprocess: Generate style check report.
+    code_pack = file_collector.build_code_pack()
     style_check_handler.handle(code_pack, language, result.status_code)
+    context.submission.code_pack = code_pack
 
 
 def get_judger_user(sid, pid, language, butler_config):

@@ -1,6 +1,6 @@
 from judge_common import Config
 
-import const
+from .const import const
 
 
 class Result:
