@@ -23,6 +23,7 @@ from judge_sender.file_collector import FileCollectorFactory
 from judge_sender.receiver_agent import ReceiverAgent
 from judge_sender.style_check_handler import StyleCheckHandler
 
+
 if TYPE_CHECKING:
     from judge_sender.context import Context
     from judge_sender.file_collector import FileCollector
@@ -87,7 +88,7 @@ def judge_submission(
     code_pack = CodePack(sid)
     if language == 1:
         file_entity = file_collector.get_submission_file_list()[0]
-        code_pack.add_code(LazyLoadingCode("main", "c", file_entity[0]))
+        code_pack.add_code(LazyLoadingCode("main", "c", file_entity[0], from_user=True))
     else:
         for file_entity in file_collector.get_submission_file_list():
             code_pack.add_code(LazyLoadingCode(file_entity[1], get_language_extension(file_entity[1]), file_entity[0]))
@@ -128,12 +129,15 @@ def judge_submission(
         result.score = -1  # Tag it so it can be found from database later on.
         result.status_code = const.RE
 
-    # Postprocess: Generate style check report.
-    if result.status_code in status_to_style_check and language == 1:
-        style_check_handler.handle(code_pack)
-
     # Update judge result to the database.
     db_agent.update_submission(sid, result)
+
+    # Postprocess: Generate style check report.
+    if result.status_code in status_to_style_check:
+        if language == 1:
+            style_check_handler.handle(code_pack)
+        elif len(code_pack.compile_args) != 0:
+            style_check_handler.handle(code_pack)
 
 
 def get_judger_user(sid, pid, language, butler_config):
