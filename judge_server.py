@@ -4,6 +4,7 @@ import os
 import time
 import traceback
 from typing import TYPE_CHECKING, Dict, NoReturn
+from pathlib import Path
 
 import pymysql
 from judge_common import CodePack, Config, DBLostConnection, LazyLoadingCode, Logger
@@ -29,7 +30,6 @@ if TYPE_CHECKING:
     from judge_sender.file_collector import FileCollector
 
 resource: Dict[str, int] = {}
-status_to_style_check = [const.CE, const.OLE, const.MLE, const.RE, const.TLE, const.WA, const.AC]
 
 
 def has_banned_word(context: Context, banned_words):
@@ -62,10 +62,6 @@ def leave_error_message(sid, message):
     assert os.system('echo "{}" > {}'.format(message, filename)) == 0
 
 
-def get_language_extension(filename):
-    return filename.split(".")[-1]
-
-
 def judge_submission(
     context: Context,
     db_agent: DBAgent,
@@ -85,13 +81,30 @@ def judge_submission(
         receiver_agent.send_file(file_entity[0], file_entity[1])
 
     # Build CodePack
-    code_pack = CodePack(sid)
+    compile_args = file_collector.get_compile_args()
+    code_pack = CodePack(sid, compile_args)
     if language == 1:
         file_entity = file_collector.get_submission_file_list()[0]
         code_pack.add_code(LazyLoadingCode("main", "c", file_entity[0], from_user=True))
     else:
         for file_entity in file_collector.get_submission_file_list():
-            code_pack.add_code(LazyLoadingCode(file_entity[1], get_language_extension(file_entity[1]), file_entity[0]))
+            full_path = file_entity[0]
+            file_path = Path(file_entity[1])
+            filename = file_path.stem
+            extension = file_path.suffix[1:]
+
+            code = LazyLoadingCode(filename, extension, full_path, from_user=True)
+            code_pack.add_code(code)
+
+        for file_entity in file_collector.get_provided_file_list():
+            full_path = file_entity[0]
+            file_path = Path(file_entity[1])
+            filename = file_path.stem
+            extension = file_path.suffix[1:]
+
+            code = LazyLoadingCode(filename, extension, full_path, from_user=False)
+            code_pack.add_code(code)
+
     context.submission.code_pack = code_pack
 
     # Ends transport for prepared files.
@@ -133,11 +146,7 @@ def judge_submission(
     db_agent.update_submission(sid, result)
 
     # Postprocess: Generate style check report.
-    if result.status_code in status_to_style_check:
-        if language == 1:
-            style_check_handler.handle(code_pack)
-        elif len(code_pack.compile_args) != 0:
-            style_check_handler.handle(code_pack)
+    style_check_handler.handle(code_pack, language, result.status_code)
 
 
 def get_judger_user(sid, pid, language, butler_config):

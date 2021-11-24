@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "judge-sender"
-version = "2.0.1"
+version = "2.1.0"
 description = ""
 authors = ["Daniel1147 <r08922169@ntu.edu.tw>"]
 

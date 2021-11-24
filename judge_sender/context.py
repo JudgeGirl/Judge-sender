@@ -25,7 +25,7 @@ class Problem:
 
 
 class Submission:
-    def __init__(self, sid):
+    def __init__(self, sid: str):
         self.sid = sid
         self.code_pack = None
 

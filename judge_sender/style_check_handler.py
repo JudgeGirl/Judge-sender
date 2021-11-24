@@ -1,4 +1,14 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+import const
 from judge_common import CodePackSerializer, Logger, WorkQueueSender
+
+
+if TYPE_CHECKING:
+    from judge_common import CodePack
+
+status_to_style_check = [const.CE, const.OLE, const.MLE, const.RE, const.TLE, const.WA, const.AC]
 
 
 class StyleCheckHandler:
@@ -13,14 +23,21 @@ class StyleCheckHandler:
         self.heartbeat_threshold = 5
         self.heartbeat_count = 0
 
-    def handle(self, code_pack):
+    def handle(self, code_pack: CodePack, language: int, result_status: int):
         config = self.config
 
         if not self.enabled:
             return
 
-        # no handle for multiple codes
-        if len(code_pack) != 1:
+        if result_status not in status_to_style_check:
+            Logger.info("invalid result status")
+            return
+
+        if language == 1:
+            Logger.info("send main.c for style check")
+
+        if language != 1 and len(code_pack.compile_args) == 0:
+            Logger.info("multiple source code files without compile arguments")
             return
 
         for retry in range(5):
