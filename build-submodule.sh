@@ -1,7 +1,7 @@
 #!/bin/sh
 
 rm -rf dependency/*
-cd common
+cd submodules/Judge-common
 poetry build
-cd ../
-cp common/dist/judge_common* dependency
+cd ../..
+cp submodules/Judge-common/dist/judge_common* dependency
