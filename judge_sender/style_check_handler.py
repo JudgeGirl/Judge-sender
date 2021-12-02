@@ -8,7 +8,7 @@ from judge_common import CodePackSerializer, Logger, WorkQueueSender
 if TYPE_CHECKING:
     from judge_common import CodePack
 
-status_to_style_check = [const.CE, const.OLE, const.MLE, const.RE, const.TLE, const.WA, const.AC]
+status_to_style_check = [const.CE, const.OLE, const.MLE, const.RE, const.TLE, const.WA, const.AC, const.PE]
 
 
 class StyleCheckHandler:
