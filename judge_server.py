@@ -188,6 +188,7 @@ def main():
 
 
 if __name__ == "__main__":
+    Logger.set_log_file("logs/log")
     while True:
         try:
             main()

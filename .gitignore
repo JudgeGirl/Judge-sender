@@ -3,3 +3,4 @@ _config.yml
 __pycache__
 dependency/
 scripts/banWordCheck.py
+logs/
