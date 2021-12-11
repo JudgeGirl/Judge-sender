@@ -13,6 +13,10 @@ class Result:
 
 
 class FailedExecutionResult(Result):
+    """
+    The result for incomplte judging process.
+    """
+
     def __init__(self):
         super().__init__()
 
