@@ -3,22 +3,22 @@ from __future__ import annotations
 import os
 import time
 import traceback
-from typing import TYPE_CHECKING, Dict, NoReturn
-from pathlib import Path
-
+from typing import TYPE_CHECKING, Dict
 import pymysql
-from judge_common import CodePack, Config, DBLostConnection, LazyLoadingCode, Logger
+from judge_common import Config, DBLostConnection, Logger
 
 # user defined module
 from judge_sender.context import (
     Context,
     ContextFactory,
+    FailedExecutionResult,
     Judger,
     Problem,
     Result,
     Submission,
 )
 from judge_sender.db_agent import DBAgent
+from judge_sender.error import SourceListNotFoundError
 from judge_sender.file_collector import FileCollectorFactory
 from judge_sender.receiver_agent import ReceiverAgent
 from judge_sender.style_check_handler import StyleCheckHandler
@@ -68,7 +68,7 @@ def judge_submission(
     style_check_handler,
     receiver_agent: ReceiverAgent,
     file_collector: FileCollector,
-) -> NoReturn:
+) -> None:
     sid = context.submission.sid
     pid = context.problem.pid
     language = context.problem.language
@@ -76,26 +76,12 @@ def judge_submission(
 
     Logger.sid(sid, "RUN sid %d pid %d language %d" % (sid, pid, language))
 
-    # Send submission codes from the user.
-    for file_entity in file_collector.get_full_send_list():
-        receiver_agent.send_file(file_entity[0], file_entity[1])
-
-    # Ends transport for prepared files.
-    receiver_agent.end_prepare(language)
-
-    # Waiting for requests of additional files.
-    while True:
-        # Receiver send the code for the end of additional files.
-        file_name = receiver_agent.get_next_additional_file()
-        if file_name is None:
-            break
-
-        file_path = file_collector.get_additional_file_path(file_name)
-        receiver_agent.send_file(file_path, file_name)
-
-    # Read the result.
-    result = receiver_agent.read_result(context)
-    context.result = result
+    try:
+        file_transfer(receiver_agent, file_collector, language)
+        result = read_receiver_result(context, receiver_agent)
+    except SourceListNotFoundError as e:
+        Logger.error(repr(e))
+        result = FailedExecutionResult()
 
     Logger.sid(sid, "GET sid %d time %d space %d score %d" % (sid, result.cpu, result.mem, result.score))
 
@@ -119,12 +105,39 @@ def judge_submission(
     db_agent.update_submission(sid, result)
 
     # Postprocess: Generate style check report.
-    code_pack = file_collector.build_code_pack()
-    style_check_handler.handle(code_pack, language, result.status_code)
-    context.submission.code_pack = code_pack
+    if not isinstance(result, FailedExecutionResult):
+        code_pack = file_collector.build_code_pack()
+        style_check_handler.handle(code_pack, language, result.status_code)
+        context.submission.code_pack = code_pack
 
 
-def get_judger_user(sid, pid, language, butler_config):
+def read_receiver_result(context: Context, receiver_agent: ReceiverAgent) -> Result:
+    result = receiver_agent.read_result(context)
+    context.result = result
+
+    return result
+
+
+def file_transfer(receiver_agent: ReceiverAgent, file_collector: FileCollector, language):
+    # Send submission codes from the user.
+    for file_entity in file_collector.get_full_send_list():
+        receiver_agent.send_file(file_entity[0], file_entity[1])
+
+    # Ends transport for prepared files.
+    receiver_agent.end_prepare(language)
+
+    # Waiting for requests of additional files.
+    while True:
+        # Receiver send the code for the end of additional files.
+        file_name = receiver_agent.get_next_additional_file()
+        if file_name is None:
+            break
+
+        file_path = file_collector.get_additional_file_path(file_name)
+        receiver_agent.send_file(file_path, file_name)
+
+
+def get_judger_user(pid, butler_config):
 
     # default judging host
     address = butler_config["host"]
@@ -174,7 +187,7 @@ def main():
         submission = Submission(sid)
 
         Logger.run("Start judging a submission")
-        account, address = get_judger_user(sid, pid, language, butler_config)
+        account, address = get_judger_user(pid, butler_config)
 
         judger = Judger(address, account)
         receiver_agent = ReceiverAgent(judger)
@@ -194,15 +207,15 @@ if __name__ == "__main__":
             main()
 
         except pymysql.err.OperationalError as err:
-            Logger.error(err)
+            Logger.error(repr(err))
             traceback.print_exc()
 
         except DBLostConnection as err:
-            Logger.error(err)
+            Logger.error(repr(err))
             traceback.print_exc()
 
         except Exception as err:
-            Logger.error(err)
+            Logger.error(repr(err))
             raise err
 
         time.sleep(5)

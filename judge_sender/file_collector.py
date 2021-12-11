@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from judge_common import Logger, CodePack, LazyLoadingCode
 
+from .error import SourceListNotFoundError
+
 if TYPE_CHECKING:
     from judge_sender.context import Problem, Submission
 
@@ -31,17 +33,20 @@ class FileCollector:
 
             submission_file_list.append([source_file, source_name])
         else:
-            with open("{}/{}/source.lst".format(self.testdata_dir, self.problem.pid)) as list_file:
-                i = 0
-                for submission_file in list_file.readlines():
-                    if submission_file.strip() == "":
-                        continue
+            try:
+                with open("{}/{}/source.lst".format(self.testdata_dir, self.problem.pid)) as list_file:
+                    i = 0
+                    for submission_file in list_file.readlines():
+                        if submission_file.strip() == "":
+                            continue
 
-                    source_file = "{}/{}-{}".format(self.submission_dir, self.submission.sid, i)
-                    source_name = submission_file[:-1]
-                    submission_file_list.append([source_file, source_name])
+                        source_file = "{}/{}-{}".format(self.submission_dir, self.submission.sid, i)
+                        source_name = submission_file[:-1]
+                        submission_file_list.append([source_file, source_name])
 
-                    i += 1
+                        i += 1
+            except FileNotFoundError as e:
+                raise SourceListNotFoundError(e)
 
         self.submission_file_list = submission_file_list
         return submission_file_list

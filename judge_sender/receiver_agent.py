@@ -70,7 +70,7 @@ class ReceiverAgent:
         self.output_pipe.write(hex_data)
         self.output_pipe.flush()
 
-    def end_prepare(self, language) -> NoReturn:
+    def end_prepare(self, language) -> None:
         self.output_pipe.write(("%10d" % -language).encode())
         self.output_pipe.flush()
 

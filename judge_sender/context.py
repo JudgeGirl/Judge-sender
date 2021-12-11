@@ -12,6 +12,17 @@ class Result:
         self.mem = None
 
 
+class FailedExecutionResult(Result):
+    def __init__(self):
+        super().__init__()
+
+        self.status_code = const.CE
+        self.description = "Failed during judging.".encode("utf-8")
+        self.score = 0
+        self.cpu = 0
+        self.mem = 0
+
+
 class Judger:
     def __init__(self, host, user):
         self.host = host

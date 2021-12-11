@@ -29,7 +29,7 @@ class DBAgent:
     def get_submission(self, sid: str) -> Optional[Dict]:
         return self.db.get_submission(sid)
 
-    def update_submission(self, sid: str, result: Result) -> NoReturn:
+    def update_submission(self, sid: str, result: Result) -> None:
         self.db.update_submission(result.score, result.status_code, result.cpu, result.mem, sid)
 
         return
