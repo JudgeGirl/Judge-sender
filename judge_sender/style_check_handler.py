@@ -33,9 +33,6 @@ class StyleCheckHandler:
             Logger.info("invalid result status")
             return
 
-        if language == 1:
-            Logger.info("send main.c for style check")
-
         for retry in range(5):
             try:
                 code_pack_str = self.serializer.serialize(code_pack)
