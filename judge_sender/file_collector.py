@@ -111,7 +111,7 @@ class FileCollector:
         if language == 1:
             file_entity = self.get_submission_file_list()[0]
             code_pack.add_code(LazyLoadingCode("main", "c", file_entity[0], from_user=True))
-        if language == 2:
+        elif language == 2:
             # cpp
             file_entity = self.get_submission_file_list()[0]
             code_pack.add_code(LazyLoadingCode("main", "cc", file_entity[0], from_user=True))
