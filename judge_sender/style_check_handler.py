@@ -54,5 +54,5 @@ class StyleCheckHandler:
     def send_heartbeat(self):
         self.heartbeat_count += 1
 
-        if self.heartbeat_count % self.heartbeat_threshold == 0:
+        if self.enabled and self.heartbeat_count % self.heartbeat_threshold == 0:
             self.work_queue_sender.send_heartbeat()
